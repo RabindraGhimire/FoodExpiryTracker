@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firstproject/services/food_firebase.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -5,200 +7,312 @@ class FoodsPage extends StatefulWidget {
   const FoodsPage({super.key});
 
   @override
-  _FoodsPageState createState() => _FoodsPageState();
+  State<FoodsPage> createState() => _FoodsPageState();
 }
 
 class _FoodsPageState extends State<FoodsPage> {
-  final List<Map<String, dynamic>> _foodList = [];
+  final FirestoreService firestoreService = FirestoreService();
 
-  void _addFoodItem() {
-    TextEditingController foodNameController = TextEditingController();
-    DateTime boughtDate = DateTime.now();
-    DateTime? expiryDate;
+  void _showAddFoodDialog(BuildContext context,
+      {String? docId,
+      String? name,
+      DateTime? purchaseDate,
+      DateTime? expiryDate,
+      int? quantity,
+      String? note}) {
+    final TextEditingController nameController =
+        TextEditingController(text: name);
+    final TextEditingController quantityController =
+        TextEditingController(text: quantity != null ? quantity.toString() : '1');
+    final TextEditingController noteController =
+        TextEditingController(text: note);
+
+    DateTime purchaseDate0 = purchaseDate ?? DateTime.now();
+    DateTime? expiryDate0 = expiryDate;
 
     showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text("Add Food Item"),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: foodNameController,
-                    decoration: InputDecoration(labelText: "Food Name"),
-                    textCapitalization: TextCapitalization.words, // Auto-capitalizing
-                  ),
-                  SizedBox(height: 10),
-                  ListTile(
-                    title: Text("Bought Date: ${DateFormat('yyyy-MM-dd').format(boughtDate)}"),
-                    trailing: Icon(Icons.calendar_today),
-                    onTap: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: boughtDate,
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2101),
-                      );
-                      if (pickedDate != null) {
-                        setStateDialog(() {
-                          boughtDate = pickedDate;
-                        });
-                      }
-                    },
-                  ),
-                  ListTile(
-                    title: Text(
-                      "Expiry Date: ${expiryDate == null ? 'Select Date' : DateFormat('yyyy-MM-dd').format(expiryDate!)}",
-                    ),
-                    trailing: Icon(Icons.calendar_today),
-                    onTap: () async {
-                      DateTime? pickedDate = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2101),
-                      );
-                      if (pickedDate != null) {
-                        setStateDialog(() {
-                          expiryDate = pickedDate;
-                        });
-                      }
-                    },
-                  ),
-                ],
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text("Cancel"),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (foodNameController.text.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Please enter a Food Name")),
-                      );
-                      return;
+      builder: (_) => StatefulBuilder(builder: (context, setState) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Text(
+            docId == null ? "Add Food Item" : "Edit Food Item",
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(color: Colors.teal),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildInputField(nameController, "Food Name"),
+                const SizedBox(height: 10),
+                _buildDatePickerTile(
+                  title:
+                      "Purchase Date: ${DateFormat.yMMMd().format(purchaseDate0)}",
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: purchaseDate0,
+                      firstDate: DateTime(2020),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => purchaseDate0 = picked);
                     }
-                    if (expiryDate == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Expiry Date is required!")),
-                      );
-                      return;
-                    }
-
-                    setState(() {
-                      _foodList.add({
-                        'name': foodNameController.text,
-                        'boughtDate': DateFormat('yyyy-MM-dd').format(boughtDate),
-                        'expiryDate': DateFormat('yyyy-MM-dd').format(expiryDate!),
-                      });
-                    });
-
-                    Navigator.of(context).pop();
                   },
-                  child: Text("Add"),
                 ),
+                _buildDatePickerTile(
+                  title: expiryDate0 == null
+                      ? "Select Expiry Date"
+                      : "Expiry Date: ${DateFormat.yMMMd().format(expiryDate0!)}",
+                  onTap: () async {
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate:
+                          expiryDate0 ?? DateTime.now().add(Duration(days: 7)),
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime(2100),
+                    );
+                    if (picked != null) {
+                      setState(() => expiryDate0 = picked);
+                    }
+                  },
+                ),
+                _buildInputField(quantityController, "Quantity",
+                    keyboardType: TextInputType.number),
+                const SizedBox(height: 10),
+                _buildInputField(noteController, "Note", maxLines: 2),
               ],
-            );
-          },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final name = nameController.text.trim();
+                final quantity =
+                    int.tryParse(quantityController.text.trim()) ?? 1;
+                final note = noteController.text.trim();
+
+                if (name.isEmpty || expiryDate0 == null) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text("Please fill all required fields")),
+                  );
+                  return;
+                }
+
+                Navigator.of(context).pop();
+
+                try {
+                  if (docId == null) {
+                    await firestoreService.addFullFoodItem(
+                      name: name,
+                      purchaseDate: purchaseDate0,
+                      expiryDate: expiryDate0!,
+                      quantity: quantity,
+                      note: note,
+                    );
+                  } else {
+                    await firestoreService.updateFoodItem(
+                      docId: docId,
+                      name: name,
+                      purchaseDate: purchaseDate0,
+                      expiryDate: expiryDate0!,
+                      quantity: quantity,
+                      note: note,
+                    );
+                  }
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Food \"$name\" saved")),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text("Error: $e")),
+                  );
+                }
+              },
+              child: Text(docId == null ? "Save" : "Update"),
+            ),
+          ],
         );
-      },
+      }),
     );
   }
 
-  void _deleteFoodItem(int index) {
-    setState(() {
-      _foodList.removeAt(index);
-    });
+  Widget _buildInputField(TextEditingController controller, String label,
+      {TextInputType keyboardType = TextInputType.text, int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.teal),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+      ),
+    );
+  }
+
+  Widget _buildDatePickerTile({required String title, required VoidCallback onTap}) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      title: Text(title, style: const TextStyle(color: Colors.teal)),
+      trailing: const Icon(Icons.calendar_today, color: Colors.teal),
+      onTap: onTap,
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context, String docId) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text("Confirm Deletion", style: TextStyle(color: Colors.red)),
+        content: const Text("Are you sure you want to delete this food item?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              await firestoreService.deleteFoodItem(docId);
+              Navigator.of(context).pop();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Food item deleted successfully")),
+              );
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Food Tracker')),
-      body: _foodList.isEmpty
-          ? Center(child: Text("No food items added"))
-          : ListView.builder(
-              itemCount: _foodList.length,
-              itemBuilder: (context, index) {
-                final food = _foodList[index];
-                DateTime expiryDate = DateFormat('yyyy-MM-dd').parse(food['expiryDate']!);
-                DateTime today = DateTime.now();
-                int daysLeft = expiryDate.difference(today).inDays;
-                bool isExpired = daysLeft < 0 || daysLeft == 0;
-
-                return Card(
-                  margin: EdgeInsets.all(10),
-                  child: Column(
-                    children: [
-                      // Title with White Background
-                      Container(
-                        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(8),
-                            topRight: Radius.circular(8),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.3),
-                              spreadRadius: 1,
-                              blurRadius: 5,
-                              offset: Offset(0, 3),
-                            ),
-                          ],
-                        ),
-                        child: Text(
-                          food['name']!,
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      ListTile(
-                        title: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Bought: ${food['boughtDate']}"),
-                            Text("Expiry: ${food['expiryDate']}"),
-                            if (!isExpired)
-                              Text(
-                                "Expires in $daysLeft days",
-                                style: TextStyle(color: daysLeft <= 3 ? Colors.orange : Colors.green),
-                              ),
-                            if (isExpired)
-                              Container(
-                                padding: EdgeInsets.all(5),
-                                margin: EdgeInsets.only(top: 5),
-                                color: Colors.red,
-                                child: Text(
-                                  "EXPIRED",
-                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                          ],
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => _deleteFoodItem(index),
-                        ),
-                      ),
-                    ],
+      appBar: AppBar(
+        title: Row(
+          children: [
+            const Icon(Icons.fastfood, color: Colors.white),
+            const SizedBox(width: 10),
+            Text(
+              'Foods',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    color: Colors.black54,
+                    offset: Offset(2, 2),
+                    blurRadius: 6,
                   ),
-                );
-              },
+                ],
+              ),
             ),
+          ],
+        ),
+        backgroundColor: Colors.teal,
+        elevation: 10,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.teal, Colors.cyan],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: firestoreService.getFoods(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final foodItems = snapshot.data!.docs;
+
+          if (foodItems.isEmpty) {
+            return const Center(child: Text("No food items found"));
+          }
+
+          return ListView.builder(
+            itemCount: foodItems.length,
+            itemBuilder: (context, index) {
+              final docId = foodItems[index].id;
+              final foodData = foodItems[index].data() as Map<String, dynamic>;
+              final name = foodData['name'];
+              final purchaseDate = (foodData['purchaseDate'] as Timestamp).toDate();
+              final expiryDate = (foodData['expiryDate'] as Timestamp).toDate();
+              final quantity = foodData['quantity'];
+              final note = foodData['note'];
+
+              return GestureDetector(
+                onLongPress: () {
+                  _showAddFoodDialog(
+                    context,
+                    docId: docId,
+                    name: name,
+                    purchaseDate: purchaseDate,
+                    expiryDate: expiryDate,
+                    quantity: quantity,
+                    note: note,
+                  );
+                },
+                child: Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                  elevation: 8,
+                  color: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: ListTile(
+                      leading: const Icon(Icons.fastfood, color: Colors.teal),
+                      title: Text(
+                        name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                          fontSize: 18,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Expires: ${DateFormat.yMMMd().format(expiryDate)}"),
+                          Text("Qty: $quantity"),
+                          if (note != null && note.isNotEmpty)
+                            Text("Note: $note", style: const TextStyle(color: Colors.black54)),
+                        ],
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _showDeleteConfirmation(context, docId),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _addFoodItem,
-        child: Icon(Icons.add),
+        onPressed: () => _showAddFoodDialog(context),
+        backgroundColor: Colors.teal,
+        child: const Icon(Icons.add),
       ),
     );
   }
