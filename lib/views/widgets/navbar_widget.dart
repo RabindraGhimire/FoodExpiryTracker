@@ -19,7 +19,8 @@ class _NavbarWidgetState extends State<NavbarWidget> {
           NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
           NavigationDestination(icon: Icon(Icons.food_bank), label: 'Foods'),
           NavigationDestination(icon: Icon(Icons.groups), label: 'Community'),
-          NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+          // NavigationDestination(icon: Icon(Icons.person), label: 'Profile'),
+          // NavigationDestination(icon: Icon(Icons.person), label: 'Sign Up')
         ],
         backgroundColor: Colors.teal,
         onDestinationSelected: (int value) {  

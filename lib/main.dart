@@ -1,14 +1,12 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firstproject/data/notifier.dart';
 import 'package:firstproject/firebase_options.dart';
-
 import 'package:firstproject/views/widget_tree.dart';
 import 'package:flutter/material.dart';
 
-
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized(); 
-  await Firebase.initializeApp(options:DefaultFirebaseOptions.currentPlatform);
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MyApp());
 }
 
@@ -33,7 +31,7 @@ class _MyAppState extends State<MyApp> {
               brightness: isDarkMode ? Brightness.dark : Brightness.light,
             ),
           ),
-          home: WidgetTree(),
+          home: const WidgetTree(),
         );
       },
     );
