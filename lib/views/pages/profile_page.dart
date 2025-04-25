@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'dart:io';
+import 'package:firstproject/services/profile_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -10,228 +11,315 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  File? _profileImage;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirestoreService firestoreService = FirestoreService();
+  final double profileHeight = 144;
 
-  final TextEditingController firstNameController = TextEditingController();
-  final TextEditingController lastNameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
+  User? get currentUser => _auth.currentUser;
 
-  bool darkMode = false;
-  bool receiveNotifications = true;
-  bool agreeToTerms = false;
-
-  Future<void> pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
-    if (pickedFile != null) {
-      setState(() {
-        _profileImage = File(pickedFile.path);
-      });
-    }
-  }
-
-  void openChangePasswordDialog() {
-    final currentPasswordController = TextEditingController();
-    final newPasswordController = TextEditingController();
-    final confirmPasswordController = TextEditingController();
+  void _showEditProfileDialog(BuildContext context,
+      {String? docId, String? first_name, String? last_name, String? email, String? phone}) {
+    final TextEditingController firstNameController = TextEditingController(text: first_name);
+    final TextEditingController lastNameController = TextEditingController(text: last_name);
+    final TextEditingController emailController = TextEditingController(text: email);
+    final TextEditingController phoneController = TextEditingController(text: phone);
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Change Password"),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: currentPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: "Current Password"),
+      builder: (_) => StatefulBuilder(builder: (context, setState) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  docId == null ? "Create Profile" : "Edit Profile",
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.teal,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildInputField(firstNameController, "First Name", Icons.person),
+                const SizedBox(height: 15),
+                _buildInputField(lastNameController, "Last Name", Icons.person),
+                const SizedBox(height: 15),
+                _buildInputField(emailController, "Email", Icons.email, keyboardType: TextInputType.emailAddress),
+                const SizedBox(height: 15),
+                _buildInputField(phoneController, "Phone", Icons.phone, keyboardType: TextInputType.phone),
+                const SizedBox(height: 25),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
+                    ),
+                    const SizedBox(width: 10),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final firstName = firstNameController.text.trim();
+                        final lastName = lastNameController.text.trim();
+                        final email = emailController.text.trim();
+                        final phone = phoneController.text.trim();
+
+                        if (firstName.isEmpty || lastName.isEmpty || email.isEmpty || phone.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Please fill all required fields")),
+                          );
+                          return;
+                        }
+
+                        Navigator.of(context).pop();
+
+                        try {
+                          if (docId == null) {
+                            await firestoreService.addProfile(
+                              userId: currentUser!.uid,
+                              firstname: firstName,
+                              lastname: lastName,
+                              email: email,
+                              contactno: phone,
+                            );
+                          } else {
+                            await firestoreService.updateProfile(
+                              docId: docId,
+                              firstname: firstName,
+                              lastname: lastName,
+                              email: email,
+                              contactno: phone,
+                            );
+                          }
+
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Profile \"$firstName $lastName\" saved")),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("Error: $e")),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.teal,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                        child: Text(docId == null ? "SAVE" : "UPDATE"),
+                      ),
+                    ),
+              ],
+                ),
+              ],
             ),
-            TextField(
-              controller: newPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: "New Password"),
-            ),
-            TextField(
-              controller: confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: "Confirm New Password"),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
-          ElevatedButton(
-            onPressed: () {
-              if (newPasswordController.text != confirmPasswordController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Passwords do not match")),
-                );
-              } else {
-                // Simulate password update logic
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Password changed successfully")),
-                );
-              }
-            },
-            child: const Text("Update"),
           ),
-        ],
-      ),
+        );
+      }),
     );
   }
 
-  void saveProfile() {
-    if (!agreeToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("You must agree to the terms and conditions")),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Profile Saved"),
-        content: Text(
-          "First Name: ${firstNameController.text}\n"
-          "Last Name: ${lastNameController.text}\n"
-          "Email: ${emailController.text}\n"
-          "Dark Mode: $darkMode\n"
-          "Notifications: $receiveNotifications\n"
-          "Agreed to Terms: $agreeToTerms",
+  Widget _buildInputField(TextEditingController controller, String label, IconData icon,
+      {TextInputType keyboardType = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: Colors.teal),
+        labelText: label,
+        floatingLabelBehavior: FloatingLabelBehavior.never,
+        filled: true,
+        fillColor: Colors.grey.withOpacity(0.1),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("OK")),
-        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final String? userId = currentUser?.uid;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Profile Settings")),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: pickImage,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
-                child: _profileImage == null
-                    ? const Icon(Icons.camera_alt, size: 40)
-                    : null,
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 200,
+            pinned: true,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.teal.shade700, Colors.teal.shade400],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
               ),
+              title: const Text('Profile', 
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              centerTitle: true,
             ),
-            const SizedBox(height: 20),
+          ),
+          SliverToBoxAdapter(
+            child: StreamBuilder<DocumentSnapshot>(
+              stream: firestoreService.getProfile(userId),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-            Row(
-              children: [
-                Expanded(
+                final profileData = snapshot.data!.data() as Map<String, dynamic>?;
+                if (profileData == null) {
+                  return SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.6,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.person_add_alt_1, size: 60, color: Colors.grey),
+                          const SizedBox(height: 20),
+                          const Text("No profile found", style: TextStyle(fontSize: 18)),
+                          TextButton(
+                            onPressed: () => _showEditProfileDialog(context),
+                            child: const Text('Create Profile', 
+                                style: TextStyle(color: Colors.teal, fontSize: 16)),
+                          )
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                final firstName = profileData['first_name'];
+                final lastName = profileData['last_name'];
+                final email = profileData['email'];
+                final phone = profileData['phone'];
+
+                return Padding(
+                  padding: const EdgeInsets.all(20),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text("First Name"),
-                      const SizedBox(height: 5),
-                      TextField(
-                        controller: firstNameController,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: "Enter First Name",
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            height: profileHeight,
+                            width: profileHeight,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Colors.white,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.teal.withOpacity(0.2),
+                                  blurRadius: 12,
+                                  spreadRadius: 6,
+                                )
+                              ],
+                            ),
+                            child: CircleAvatar(
+                              radius: profileHeight / 2,
+                              backgroundColor: Colors.teal.shade100,
+                              child: Text(
+                                firstName != null && firstName.isNotEmpty ? firstName[0] : 'U',
+                                style: TextStyle(
+                                  fontSize: 48,
+                                  color: Colors.teal.shade800,
+                                  fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.grey.withOpacity(0.3),
+                                    blurRadius: 6,
+                                    spreadRadius: 2,
+                                  )
+                                ],
+                              ),
+                              child: IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.teal),
+                                onPressed: () => _showEditProfileDialog(
+                                  context,
+                                  docId: snapshot.data!.id,
+                                  first_name: firstName,
+                                  last_name: lastName,
+                                  email: email,
+                                  phone: phone,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15)),
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            children: [
+                              _buildProfileItem(Icons.person, 'Name', '$firstName $lastName'),
+                              const Divider(height: 30),
+                              _buildProfileItem(Icons.email, 'Email', email),
+                              const Divider(height: 30),
+                              _buildProfileItem(Icons.phone, 'Phone', phone),
+                            ],
+                          ),
                         ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text("Last Name"),
-                      const SizedBox(height: 5),
-                      TextField(
-                        controller: lastNameController,
-                        decoration: const InputDecoration(
-                          border: OutlineInputBorder(),
-                          hintText: "Enter Last Name",
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text("Email"),
-            ),
-            const SizedBox(height: 5),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: "Enter your email",
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            Align(
-              alignment: Alignment.centerLeft,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.lock_reset),
-                label: const Text("Change Password"),
-                onPressed: openChangePasswordDialog,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            SwitchListTile(
-              title: const Text("Dark Mode"),
-              value: darkMode,
-              onChanged: (value) {
-                setState(() {
-                  darkMode = value;
-                });
+                );
               },
             ),
-            SwitchListTile(
-              title: const Text("Receive Notifications"),
-              value: receiveNotifications,
-              onChanged: (value) {
-                setState(() {
-                  receiveNotifications = value;
-                });
-              },
-            ),
-            CheckboxListTile(
-              title: const Text("I agree to the Terms and Conditions"),
-              value: agreeToTerms,
-              onChanged: (value) {
-                setState(() {
-                  agreeToTerms = value ?? false;
-                });
-              },
-            ),
-            const SizedBox(height: 20),
-
-            ElevatedButton.icon(
-              onPressed: saveProfile,
-              icon: const Icon(Icons.save),
-              label: const Text("Save Profile"),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => _showEditProfileDialog(context),
+        backgroundColor: Colors.teal,
+        child: const Icon(Icons.add, color: Colors.white),
+      ),
+    );
+  }
+
+  Widget _buildProfileItem(IconData icon, String title, String value) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: Colors.teal, size: 28),
+        const SizedBox(width: 15),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(
+                color: Colors.grey,
+                fontSize: 14,
+                fontWeight: FontWeight.w500)),
+              const SizedBox(height: 5),
+              Text(value, style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -72,7 +72,7 @@ class _FoodsPageState extends State<FoodsPage> {
                     final picked = await showDatePicker(
                       context: context,
                       initialDate:
-                          expiryDate0 ?? DateTime.now().add(Duration(days: 7)),
+                          expiryDate0 ?? DateTime.now().add(const Duration(days: 7)),
                       firstDate: DateTime.now(),
                       lastDate: DateTime(2100),
                     );
@@ -108,36 +108,43 @@ class _FoodsPageState extends State<FoodsPage> {
                   return;
                 }
 
-                Navigator.of(context).pop();
-
                 try {
-                  if (docId == null) {
-                    await firestoreService.addFullFoodItem(
-                      name: name,
-                      purchaseDate: purchaseDate0,
-                      expiryDate: expiryDate0!,
-                      quantity: quantity,
-                      note: note,
-                    );
-                  } else {
-                    await firestoreService.updateFoodItem(
-                      docId: docId,
-                      name: name,
-                      purchaseDate: purchaseDate0,
-                      expiryDate: expiryDate0!,
-                      quantity: quantity,
-                      note: note,
-                    );
-                  }
+  if (docId == null) {
+    await firestoreService.addFullFoodItem(
+      name: name,
+      purchaseDate: purchaseDate0,
+      expiryDate: expiryDate0!,
+      quantity: quantity,
+      note: note,
+    );
+  } else {
+    await firestoreService.updateFoodItem(
+      docId: docId,
+      name: name,
+      purchaseDate: purchaseDate0,
+      expiryDate: expiryDate0!,
+      quantity: quantity,
+      note: note,
+    );
+  }
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Food \"$name\" saved")),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Error: $e")),
-                  );
-                }
+  if (mounted) {
+    Navigator.of(context).pop();
+  }
+
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Food \"$name\" saved")),
+    );
+  }
+} catch (e) {
+  if (mounted) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Error: $e")),
+    );
+  }
+}
+
               },
               child: Text(docId == null ? "Save" : "Update"),
             ),
@@ -170,102 +177,73 @@ class _FoodsPageState extends State<FoodsPage> {
     );
   }
 
-  void _showDeleteConfirmation(BuildContext context, String docId) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Confirm Deletion", style: TextStyle(color: Colors.red)),
-        content: const Text("Are you sure you want to delete this food item?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              await firestoreService.deleteFoodItem(docId);
-              Navigator.of(context).pop();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Food item deleted successfully")),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text("Delete"),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Row(
           children: [
-  Center(
-  child: Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFFff9a9e), Color(0xFFfad0c4)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.pinkAccent.withOpacity(0.4),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+            Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFff9a9e), Color(0xFFfad0c4)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.pinkAccent.withOpacity(0.4),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child:
+                        const Icon(Icons.fastfood, color: Colors.white, size: 30),
+                  ),
+                  const SizedBox(width: 16),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Text(
+                        'My Pantry',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 1.2,
+                          shadows: [
+                            Shadow(
+                              color: Colors.black38,
+                              offset: Offset(1, 1),
+                              blurRadius: 6,
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Track your food items',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.white70,
+                          fontStyle: FontStyle.italic,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
-        ),
-        padding: const EdgeInsets.all(12),
-        child: const Icon(Icons.fastfood, color: Colors.white, size: 30),
-      ),
-      const SizedBox(width: 16),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Text(
-            'My Pantry',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              letterSpacing: 1.2,
-              shadows: [
-                Shadow(
-                  color: Colors.black38,
-                  offset: Offset(1, 1),
-                  blurRadius: 6,
-                ),
-              ],
-            ),
-          ),
-          SizedBox(height: 4),
-          Text(
-            'Track your food items',
-            style: TextStyle(
-              fontSize: 13,
-              color: Colors.white70,
-              fontStyle: FontStyle.italic,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    ],
-  ),
-)
-
-],
-
         ),
         backgroundColor: Colors.teal,
         elevation: 10,
@@ -293,125 +271,89 @@ class _FoodsPageState extends State<FoodsPage> {
           }
 
           return ListView.builder(
-  itemCount: foodItems.length,
-  itemBuilder: (context, index) {
-    final docId = foodItems[index].id;
-    final foodData = foodItems[index].data() as Map<String, dynamic>;
-    final name = foodData['name'];
-    final purchaseDate = (foodData['purchaseDate'] as Timestamp).toDate();
-    final expiryDate = (foodData['expiryDate'] as Timestamp).toDate();
-    final quantity = foodData['quantity'];
-    final note = foodData['note'];
+            itemCount: foodItems.length,
+            itemBuilder: (context, index) {
+              final docId = foodItems[index].id;
+              final foodData = foodItems[index].data() as Map<String, dynamic>;
+              final name = foodData['name'];
+              final purchaseDate = (foodData['purchaseDate'] as Timestamp).toDate();
+              final expiryDate = (foodData['expiryDate'] as Timestamp).toDate();
+              final quantity = foodData['quantity'];
+              final note = foodData['note'];
 
-    final isExpired = expiryDate.isBefore(DateTime.now());
+              final isExpired = expiryDate.isBefore(DateTime.now());
 
-    return Dismissible(
-      key: Key(docId),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        color: Colors.red,
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      confirmDismiss: (_) async {
-        bool confirm = false;
-        await showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text("Confirm Deletion", style: TextStyle(color: Colors.red)),
-            content: const Text("Are you sure you want to delete this food item?"),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  confirm = true;
-                  Navigator.of(context).pop();
+              return Dismissible(
+                key: Key(docId),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  color: Colors.red,
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                confirmDismiss: (_) async {
+                  bool confirm = false;
+                  await showDialog(
+                    context: context,
+                    builder: (_) => AlertDialog(
+                      title: const Text("Confirm Deletion",
+                          style: TextStyle(color: Colors.red)),
+                      content: const Text(
+                          "Are you sure you want to delete this food item?"),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text("Cancel",
+                              style: TextStyle(color: Colors.grey)),
+                        ),
+                        ElevatedButton(
+                          onPressed: () {
+                            confirm = true;
+                            Navigator.of(context).pop();
+                          },
+                          style:
+                              ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                          child: const Text("Delete"),
+                        ),
+                      ],
+                    ),
+                  );
+                  return confirm;
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                child: const Text("Delete"),
-              ),
-            ],
-          ),
-        );
-        return confirm;
-      },
-      onDismissed: (_) async {
-        await firestoreService.deleteFoodItem(docId);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Food item deleted successfully")),
-        );
-      },
-      child: GestureDetector(
-        onLongPress: () {
-          _showAddFoodDialog(
-            context,
-            docId: docId,
-            name: name,
-            purchaseDate: purchaseDate,
-            expiryDate: expiryDate,
-            quantity: quantity,
-            note: note,
-          );
-        },
-        child: Card(
-          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          elevation: 8,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: ListTile(
-              leading: Icon(
-                Icons.fastfood,
-                color: isExpired ? Colors.grey : Colors.teal,
-              ),
-              title: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.teal,
-                        fontSize: 18,
-                      ),
+                onDismissed: (_) async {
+                  await firestoreService.deleteFoodItem(docId);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Food item deleted successfully")),
+                  );
+                },
+                child: GestureDetector(
+                  onLongPress: () {
+                    _showAddFoodDialog(
+                      context,
+                      docId: docId,
+                      name: name,
+                      purchaseDate: purchaseDate,
+                      expiryDate: expiryDate,
+                      quantity: quantity,
+                      note: note,
+                    );
+                  },
+                  child: Card(
+                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                    child: ListTile(
+                      leading: Icon(Icons.fastfood,
+                          color: isExpired ? Colors.red : Colors.teal),
+                      title: Text(name),
+                      subtitle: Text(
+                          "Qty: $quantity | Exp: ${DateFormat.yMMMd().format(expiryDate)}"),
+                      //trailing: const Icon(Icons.edit, color: Colors.grey),
                     ),
                   ),
-                  if (isExpired)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.red[100],
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Text(
-                        "Expired",
-                        style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                ],
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Expires: ${DateFormat.yMMMd().format(expiryDate)}"),
-                  Text("Qty: $quantity"),
-                  if (note != null && note.isNotEmpty)
-                    Text("Note: $note", style: const TextStyle(color: Colors.black54)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  },
-);
-
+                ),
+              );
+            },
+          );
         },
       ),
       floatingActionButton: FloatingActionButton(

@@ -32,7 +32,7 @@ class _SignUpPageState extends State<SignUpPage> {
         final uid = userCredential.user!.uid;
 
         // Save additional user info to Firestore
-        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        await FirebaseFirestore.instance.collection('profiles').doc(uid).set({
           'first_name': _firstNameController.text.trim(),
           'last_name': _lastNameController.text.trim(),
           'email': email,

@@ -1,7 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class FirestoreService {
   final CollectionReference foods = FirebaseFirestore.instance.collection('foods');
+
+  // Get current user ID
+  String? get currentUserId => FirebaseAuth.instance.currentUser?.uid;
 
   // CREATE - Add full food item
   Future<void> addFullFoodItem({
@@ -11,7 +15,11 @@ class FirestoreService {
     required int quantity,
     required String note,
   }) {
+    final userId = currentUserId;
+    if (userId == null) throw Exception('User not logged in');
+
     return foods.add({
+      'userId': userId,
       'name': name,
       'purchaseDate': Timestamp.fromDate(purchaseDate),
       'expiryDate': Timestamp.fromDate(expiryDate),
@@ -21,9 +29,17 @@ class FirestoreService {
     });
   }
 
-  // READ - Get food items ordered by expiryDate
+  // READ - Get food items ordered by expiryDate for the current user
   Stream<QuerySnapshot> getFoods() {
-    return foods.orderBy('expiryDate').snapshots();
+    final userId = currentUserId;
+    if (userId == null) {
+      return const Stream.empty();
+    }
+
+    return foods
+        .where('userId', isEqualTo: userId)
+        .orderBy('expiryDate')
+        .snapshots();
   }
 
   // UPDATE - Update food item by document ID
