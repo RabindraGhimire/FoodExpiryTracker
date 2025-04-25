@@ -213,7 +213,7 @@ class _FoodsPageState extends State<FoodsPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
                       Text(
-                        'My Pantry',
+                        'My Foods',
                         style: TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
