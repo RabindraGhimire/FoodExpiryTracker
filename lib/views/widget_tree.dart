@@ -13,7 +13,7 @@ String? title = 'Food Expiry Tracker';
 // Define the list of pages for the bottom navigation
 List<Widget> pages = [
   HomePage(),
-  FoodsPage(),
+  FoodsPage(showAddForm: true,),
   CommunityPage(),
 ];
 

@@ -47,6 +47,7 @@ dependencies:
   path: ^1.9.1
   firebase_auth: ^5.5.2
   geolocator: ^14.0.0
+  mobile_scanner: ^6.0.10
 
 
 dev_dependencies:

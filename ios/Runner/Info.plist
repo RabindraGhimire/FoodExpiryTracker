@@ -50,6 +50,9 @@
 	<string>We need your location to share food nearby.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>We need your location to share food nearby.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>We need camera access to scan barcodes.</string>
+
 
 </dict>
 </plist>
