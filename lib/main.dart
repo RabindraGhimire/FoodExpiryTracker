@@ -30,7 +30,7 @@ class _MyAppState extends State<MyApp> {
           theme: ThemeData(
             colorScheme: ColorScheme.fromSeed(
               seedColor: Colors.teal, // Changed to teal to match your app bar
-              brightness: isDarkMode ? Brightness.dark : Brightness.light,
+              brightness: isDarkMode ? Brightness.light : Brightness.dark,
             ),
             useMaterial3: true,
           ),

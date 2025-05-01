@@ -1,4 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firstproject/views/pages/home_page.dart';
+import 'package:firstproject/views/widget_tree.dart';
 import 'package:flutter/material.dart';
 import 'profile_page.dart';
 import 'signup_page.dart';
@@ -34,7 +36,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         if (userCredential.user != null) {
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const ProfilePage()),
+            MaterialPageRoute(builder: (context) =>const WidgetTree()),
           );
         }
       } on FirebaseAuthException catch (e) {
