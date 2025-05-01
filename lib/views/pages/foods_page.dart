@@ -514,140 +514,147 @@ class _FoodsPageState extends State<FoodsPage> {
                 final isExpiringSoon = daysUntilExpiry <= 3 && !isExpired;
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-                  child: Slidable(
-                    endActionPane: ActionPane(
-                      motion: const DrawerMotion(),
-                      children: [
-                        SlidableAction(
-                            onPressed: (context) async {
-                              final shouldDelete = await _confirmDelete(context);
-                              if (shouldDelete) {
-                                await firestoreService.deleteFoodItem(docId);
+  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+  child: Builder(
+    builder: (outerContext) {
+      return Slidable(
+        endActionPane: ActionPane(
+          motion: const DrawerMotion(),
+          children: [
+            SlidableAction(
+              onPressed: (_) async {
+                final shouldDelete = await _confirmDelete(outerContext);
+                if (shouldDelete) {
+                  await firestoreService.deleteFoodItem(docId);
 
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("Food item deleted"),
-                                      behavior: SnackBarBehavior.floating,
-                                    ),
-                                  );
-                                });
-                              }
-                            },
-                            backgroundColor: Colors.red,
-                            foregroundColor: Colors.white,
-                            icon: Icons.delete,
-                            label: 'Delete',
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ],
-                      ),
-                    child: Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () {
-                          _showAddOrEditFoodDialog(
-                            context,
-                            docId: docId,
-                            name: name,
-                            purchaseDate: purchaseDate,
-                            expiryDate: expiryDate,
-                            quantity: quantity,
-                            note: note,
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              // Food Icon with Status
-                              Container(
-                                width: 50,
-                                height: 50,
-                                decoration: BoxDecoration(
-                                  color: isExpired
-                                      ? Colors.red[50]
-                                      : isExpiringSoon
-                                          ? Colors.orange[50]
-                                          : Colors.teal[50],
-                                  shape: BoxShape.circle,
-                                ),
-                                child: Icon(
-                                  Icons.fastfood,
-                                  color: isExpired
-                                      ? Colors.red
-                                      : isExpiringSoon
-                                          ? Colors.orange
-                                          : Colors.teal,
-                                ),
-                              ),
-                              const SizedBox(width: 15),
-                              
-                              // Food Details
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      name,
-                                      style: const TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      "Qty: $quantity • Purchased: ${DateFormat.yMMMd().format(purchaseDate)}",
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey[600],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              
-                              // Expiry Info
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: isExpired
-                                      ? Colors.red[50]
-                                      : isExpiringSoon
-                                          ? Colors.orange[50]
-                                          : Colors.teal[50],
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Text(
-                                  isExpired
-                                      ? "Expired"
-                                      : isExpiringSoon
-                                          ? "Expires soon"
-                                          : "Exp: ${DateFormat.MMMd().format(expiryDate)}",
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: isExpired
-                                        ? Colors.red
-                                        : isExpiringSoon
-                                            ? Colors.orange
-                                            : Colors.teal,
-                                  ),
-                                ),
-                              ),
-                            ],
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (outerContext.mounted) {
+                      ScaffoldMessenger.of(outerContext).showSnackBar(
+                        const SnackBar(
+                          content: Text("Food item deleted"),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  });
+                }
+              },
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              icon: Icons.delete,
+              label: 'Delete',
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ],
+        ),
+        child: Card(
+          elevation: 2,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              _showAddOrEditFoodDialog(
+                outerContext,
+                docId: docId,
+                name: name,
+                purchaseDate: purchaseDate,
+                expiryDate: expiryDate,
+                quantity: quantity,
+                note: note,
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  // Food Icon with Status
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      color: isExpired
+                          ? Colors.red[50]
+                          : isExpiringSoon
+                              ? Colors.orange[50]
+                              : Colors.teal[50],
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.fastfood,
+                      color: isExpired
+                          ? Colors.red
+                          : isExpiringSoon
+                              ? Colors.orange
+                              : Colors.teal,
+                    ),
+                  ),
+                  const SizedBox(width: 15),
+
+                  // Food Details
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Qty: $quantity • Purchased: ${DateFormat.yMMMd().format(purchaseDate)}",
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Expiry Info
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isExpired
+                          ? Colors.red[50]
+                          : isExpiringSoon
+                              ? Colors.orange[50]
+                              : Colors.teal[50],
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      isExpired
+                          ? "Expired"
+                          : isExpiringSoon
+                              ? "Expires soon"
+                              : "Exp: ${DateFormat.MMMd().format(expiryDate)}",
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: isExpired
+                            ? Colors.red
+                            : isExpiringSoon
+                                ? Colors.orange
+                                : Colors.teal,
                       ),
                     ),
                   ),
-                );
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  ),
+);
+
               },
             );
           },
