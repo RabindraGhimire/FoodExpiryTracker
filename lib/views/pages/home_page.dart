@@ -13,20 +13,20 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: AppBar(
-        title: const Text('Food Tracker', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.green[700],
-        centerTitle: true,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              // This will automatically refresh the StreamBuilder
-            },
-          ),
-        ],
-      ),
+      // appBar: AppBar(
+      //   title: const Text('Food Tracker', style: TextStyle(fontWeight: FontWeight.bold)),
+      //   backgroundColor: Colors.green[700],
+      //   centerTitle: true,
+      //   elevation: 0,
+      //   actions: [
+      //     IconButton(
+      //       icon: const Icon(Icons.refresh),
+      //       onPressed: () {
+      //         // This will automatically refresh the StreamBuilder
+      //       },
+      //     ),
+      //   ],
+      // ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: StreamBuilder<QuerySnapshot>(
@@ -206,17 +206,17 @@ class HomePage extends StatelessWidget {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Navigate to Add Food Page
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => FoodsPage(showAddForm: true)),
-          );
-        },
-        backgroundColor: Colors.green[700],
-        child: const Icon(Icons.add),
-      ),
+      // floatingActionButton: FloatingActionButton(
+      //   onPressed: () {
+      //     // Navigate to Add Food Page
+      //     Navigator.push(
+      //       context,
+      //       MaterialPageRoute(builder: (context) => FoodsPage(showAddForm: true)),
+      //     );
+      //   },
+      //   backgroundColor: Colors.green[700],
+      //   child: const Icon(Icons.add),
+      // ),
     );
   }
 
