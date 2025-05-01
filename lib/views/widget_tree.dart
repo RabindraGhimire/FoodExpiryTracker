@@ -20,7 +20,6 @@ List<Widget> pages = [
 class WidgetTree extends StatelessWidget {
   const WidgetTree({super.key});
 
-  // Show log-out confirmation dialog
   void _showLogOutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -28,20 +27,17 @@ class WidgetTree extends StatelessWidget {
         title: const Text('Log out'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
-          // Cancel button
           TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
-          // Log out button
           TextButton(
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              Navigator.pushReplacement(
+              Navigator.pushAndRemoveUntil(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginPage()),
+                (route) => false,
               );
             },
             child: const Text('Log Out'),
@@ -53,33 +49,29 @@ class WidgetTree extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // StreamBuilder to handle the user login status
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Show loading indicator if waiting for user state
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
 
-        // Get the current user
-        User? user = snapshot.data;
-
-        // If user is not logged in, show the login page
+        final user = snapshot.data;
+        
         if (user == null) {
           return const LoginPage();
         }
 
-        // Fallback to 'U' if displayName is unavailable
-        String usernameFirstLetter = user.displayName != null && user.displayName!.isNotEmpty
-            ? user.displayName![0]
+        final usernameFirstLetter = user.displayName?.isNotEmpty == true 
+            ? user.displayName![0] 
             : 'U';
 
         return Scaffold(
           appBar: AppBar(
-            title: Text(title!),
+            title: Text(title ?? 'Food Expiry Tracker'),
             actions: [
-              // Profile and Log out options
               Padding(
                 padding: const EdgeInsets.all(8.0),
                 child: PopupMenuButton<String>(
@@ -93,62 +85,51 @@ class WidgetTree extends StatelessWidget {
                       _showLogOutDialog(context);
                     }
                   },
-                  itemBuilder: (context) {
-                    return [
-                      // Profile Settings option
-                      PopupMenuItem<String>(
-                        value: 'profile',
-                        child: Row(
-                          children: [
-                            Icon(Icons.account_circle),
-                            SizedBox(width: 10),
-                            Text('Profile Settings'),
-                          ],
-                        ),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'profile',
+                      child: Row(
+                        children: [
+                          Icon(Icons.account_circle),
+                          SizedBox(width: 10),
+                          Text('Profile Settings'),
+                        ],
                       ),
-                      // Log Out option
-                      PopupMenuItem<String>(
-                        value: 'logout',
-                        child: Row(
-                          children: [
-                            Icon(Icons.logout),
-                            SizedBox(width: 10),
-                            Text('Log Out'),
-                          ],
-                        ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'logout',
+                      child: Row(
+                        children: [
+                          Icon(Icons.logout),
+                          SizedBox(width: 10),
+                          Text('Log Out'),
+                        ],
                       ),
-                    ];
-                  },
+                    ),
+                  ],
                   child: CircleAvatar(
-                    child: Text(usernameFirstLetter), // Display first letter of username
+                    child: Text(usernameFirstLetter),
                   ),
                 ),
               ),
-              // Dark mode toggle button
               IconButton(
-                onPressed: () {
-                  isDarkModeNotifier.value = !isDarkModeNotifier.value;
-                },
+                onPressed: () => isDarkModeNotifier.value = !isDarkModeNotifier.value,
                 icon: ValueListenableBuilder(
                   valueListenable: isDarkModeNotifier,
-                  builder: (context, isDarkMode, child) {
-                    return Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode);
-                  },
+                  builder: (context, isDarkMode, child) => Icon(
+                    isDarkMode ? Icons.light_mode : Icons.dark_mode,
+                  ),
                 ),
               ),
             ],
             centerTitle: true,
             backgroundColor: Colors.teal,
           ),
-          // Body of the app based on selected page from bottom navigation
           body: ValueListenableBuilder(
             valueListenable: selectedPageNotifier,
-            builder: (context, selectedPage, child) {
-              return pages.elementAt(selectedPage);
-            },
+            builder: (context, selectedPage, child) => pages.elementAt(selectedPage),
           ),
-          // Bottom navigation bar
-          bottomNavigationBar: NavbarWidget(),
+          bottomNavigationBar: const NavbarWidget(),
         );
       },
     );

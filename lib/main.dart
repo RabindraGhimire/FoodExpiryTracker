@@ -22,36 +22,36 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: FirebaseAuth.instance.authStateChanges().first,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+    return ValueListenableBuilder(
+      valueListenable: isDarkModeNotifier,
+      builder: (context, isDarkMode, child) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: Colors.teal, // Changed to teal to match your app bar
+              brightness: isDarkMode ? Brightness.dark : Brightness.light,
+            ),
+            useMaterial3: true,
+          ),
+          home: FutureBuilder(
+            future: FirebaseAuth.instance.authStateChanges().first,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
 
-        if (snapshot.hasData) {
-          // If the user is authenticated, show the app content
-          return ValueListenableBuilder(
-            valueListenable: isDarkModeNotifier,
-            builder: (context, isDarkMode, child) {
-              return MaterialApp(
-                debugShowCheckedModeBanner: false,
-                theme: ThemeData(
-                  colorScheme: ColorScheme.fromSeed(
-                    seedColor: Colors.red,
-                    brightness: isDarkMode ? Brightness.light : Brightness.dark,
-                  ),
-                ),
-                home: const WidgetTree(),
-              );
+              if (snapshot.hasData) {
+                return const WidgetTree();
+              } else {
+                return const LoginPage();
+              }
             },
-          );
-        } else {
-          // If not authenticated, show the login page
-          return const LoginPage();
-        }
+          ),
+        );
       },
     );
   }
 }
-
