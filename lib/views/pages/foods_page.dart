@@ -44,6 +44,67 @@ class _FoodsPageState extends State<FoodsPage> {
     });
   }
 
+  Future<void> _scanExpiryDate(BuildContext context, Function(DateTime) onDateScanned) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => BarcodeScannerPage(
+          onScanned: (barcode) {
+            // Try to parse the barcode as a date (common formats)
+            DateTime? parsedDate;
+            
+            // Try YYYYMMDD format (common in barcodes)
+            if (barcode.length == 8) {
+              try {
+                final year = int.parse(barcode.substring(0, 4));
+                final month = int.parse(barcode.substring(4, 6));
+                final day = int.parse(barcode.substring(6, 8));
+                parsedDate = DateTime(year, month, day);
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+            
+            // Try MMDDYY format
+            if (parsedDate == null && barcode.length == 6) {
+              try {
+                final month = int.parse(barcode.substring(0, 2));
+                final day = int.parse(barcode.substring(2, 4));
+                final year = int.parse("20${barcode.substring(4, 6)}");
+                parsedDate = DateTime(year, month, day);
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+            
+            // Try DDMMYY format
+            if (parsedDate == null && barcode.length == 6) {
+              try {
+                final day = int.parse(barcode.substring(0, 2));
+                final month = int.parse(barcode.substring(2, 4));
+                final year = int.parse("20${barcode.substring(4, 6)}");
+                parsedDate = DateTime(year, month, day);
+              } catch (e) {
+                // Ignore parse errors
+              }
+            }
+
+            if (parsedDate != null) {
+              Navigator.of(context).pop();
+              onDateScanned(parsedDate);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("Couldn't parse date from barcode: $barcode"),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
+
   void _showAddOrEditFoodDialog(BuildContext context,
       {String? docId,
       String? name,
@@ -86,8 +147,7 @@ class _FoodsPageState extends State<FoodsPage> {
                     decoration: BoxDecoration(
                       color: Colors.grey[400],
                       borderRadius: BorderRadius.circular(5),
-                  ),
-                  ),
+                  ),),
                   Text(
                       docId == null ? "Add Food Item" : "Edit Food Item",
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -104,7 +164,7 @@ class _FoodsPageState extends State<FoodsPage> {
                       labelText: "Food Name",
                       prefixIcon: const Icon(Icons.fastfood),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(15),),
+                        borderRadius: BorderRadius.circular(15)),
                       filled: true,
                     ),
                     textCapitalization: TextCapitalization.sentences,
@@ -151,14 +211,41 @@ class _FoodsPageState extends State<FoodsPage> {
                       Expanded(
                         child: InkWell(
                           onTap: () async {
-                            final picked = await showDatePicker(
+                            final result = await showModalBottomSheet<DateTime>(
                               context: context,
-                              initialDate: selectedExpiryDate ?? DateTime.now().add(const Duration(days: 7)),
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime(2100),
+                              builder: (context) => Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.camera_alt),
+                                    title: const Text('Scan expiry date from barcode'),
+                                    onTap: () async {
+                                      await _scanExpiryDate(context, (date) {
+                                        Navigator.of(context).pop(date);
+                                      });
+                                    },
+                                  ),
+                                  ListTile(
+                                    leading: const Icon(Icons.calendar_today),
+                                    title: const Text('Select date manually'),
+                                    onTap: () async {
+                                      final picked = await showDatePicker(
+                                        context: context,
+                                        initialDate: selectedExpiryDate ?? DateTime.now().add(const Duration(days: 7)),
+                                        firstDate: DateTime.now(),
+                                        lastDate: DateTime(2100),
+                                      );
+                                      if (picked != null) {
+                                        Navigator.of(context).pop(picked);
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
                             );
-                            if (picked != null) {
-                              setModalState(() => selectedExpiryDate = picked);
+                            
+                            if (result != null) {
+                              setModalState(() => selectedExpiryDate = result);
                             }
                           },
                           child: Container(
@@ -433,29 +520,29 @@ class _FoodsPageState extends State<FoodsPage> {
                       motion: const DrawerMotion(),
                       children: [
                         SlidableAction(
-                          onPressed: (context) async {
-                            final shouldDelete = await _confirmDelete(context);
-                            if (shouldDelete) {
-                              await firestoreService.deleteFoodItem(docId);
-                              if (mounted) {
-                                // ignore: use_build_context_synchronously
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text("Food item deleted"),
-                                    behavior: SnackBarBehavior.floating,
-                                  ),
-                                );
+                            onPressed: (context) async {
+                              final shouldDelete = await _confirmDelete(context);
+                              if (shouldDelete) {
+                                await firestoreService.deleteFoodItem(docId);
+
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Food item deleted"),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                });
                               }
-                            }
-                          },
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          icon: Icons.delete,
-                          label: 'Delete',
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ],
-                    ),
+                            },
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            icon: Icons.delete,
+                            label: 'Delete',
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ],
+                      ),
                     child: Card(
                       elevation: 2,
                       shape: RoundedRectangleBorder(
