@@ -48,6 +48,7 @@ dependencies:
   firebase_auth: ^5.5.2
   geolocator: ^14.0.0
   mobile_scanner: ^6.0.10
+  flutter_slidable: ^4.0.0
 
 
 dev_dependencies:

@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firstproject/services/food_firebase.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:mobile_scanner/mobile_scanner.dart'; // <-- Scanner package
+import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
 class FoodsPage extends StatefulWidget {
   const FoodsPage({super.key, required bool showAddForm});
@@ -14,6 +15,14 @@ class FoodsPage extends StatefulWidget {
 class _FoodsPageState extends State<FoodsPage> {
   final FirestoreService firestoreService = FirestoreService();
   bool isScanning = false;
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _startScanner() async {
     setState(() {
@@ -49,139 +58,521 @@ class _FoodsPageState extends State<FoodsPage> {
     DateTime selectedPurchaseDate = purchaseDate ?? DateTime.now();
     DateTime? selectedExpiryDate = expiryDate;
 
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-            title: Text(
-              docId == null ? "Add Food Item" : "Edit Food Item",
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.teal),
-            ),
-            content: SingleChildScrollView(
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),),
+          padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+          left: 20,
+          right: 20,
+          top: 20,
+        ),
+        child: StatefulBuilder(
+          builder: (context, setModalState) {
+            return SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  _buildInputField(nameController, "Food Name"),
-                  const SizedBox(height: 10),
-                  _buildDatePickerTile(
-                    title: "Purchase Date: ${DateFormat.yMMMd().format(selectedPurchaseDate)}",
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedPurchaseDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setModalState(() => selectedPurchaseDate = picked);
-                      }
-                    },
+                  // Draggable handle
+                  Container(
+                    width: 40,
+                    height: 5,
+                    margin: const EdgeInsets.only(bottom: 15),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[400],
+                      borderRadius: BorderRadius.circular(5),
                   ),
-                  _buildDatePickerTile(
-                    title: selectedExpiryDate == null
-                        ? "Select Expiry Date"
-                        : "Expiry Date: ${DateFormat.yMMMd().format(selectedExpiryDate!)}",
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: selectedExpiryDate ?? DateTime.now().add(const Duration(days: 7)),
-                        firstDate: DateTime.now(),
-                        lastDate: DateTime(2100),
-                      );
-                      if (picked != null) {
-                        setModalState(() => selectedExpiryDate = picked);
-                      }
-                    },
                   ),
-                  _buildInputField(quantityController, "Quantity", keyboardType: TextInputType.number),
-                  const SizedBox(height: 10),
-                  _buildInputField(noteController, "Note", maxLines: 2),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  final name = nameController.text.trim();
-                  final quantity = int.tryParse(quantityController.text.trim()) ?? 1;
-                  final note = noteController.text.trim();
+                  Text(
+                      docId == null ? "Add Food Item" : "Edit Food Item",
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  
+                  // Food Name Field
+                  TextFormField(
+                    controller: nameController,
+                    decoration: InputDecoration(
+                      labelText: "Food Name",
+                      prefixIcon: const Icon(Icons.fastfood),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15),),
+                      filled: true,
+                    ),
+                    textCapitalization: TextCapitalization.sentences,
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  // Date Pickers Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: selectedPurchaseDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              setModalState(() => selectedPurchaseDate = picked);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12, horizontal: 15),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today, size: 18),
+                                const SizedBox(width: 10),
+                                Text(
+                                  DateFormat.yMMMd().format(selectedPurchaseDate),
+                                  style: const TextStyle(fontSize: 14),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: selectedExpiryDate ?? DateTime.now().add(const Duration(days: 7)),
+                              firstDate: DateTime.now(),
+                              lastDate: DateTime(2100),
+                            );
+                            if (picked != null) {
+                              setModalState(() => selectedExpiryDate = picked);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12, horizontal: 15),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(15),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.event_available,
+                                  size: 18,
+                                  color: selectedExpiryDate == null 
+                                      ? Colors.grey 
+                                      : Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  selectedExpiryDate == null
+                                      ? "Expiry Date"
+                                      : DateFormat.yMMMd().format(selectedExpiryDate!),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: selectedExpiryDate == null 
+                                        ? Colors.grey 
+                                        : null,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  // Quantity Field
+                  TextFormField(
+                    controller: quantityController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: "Quantity",
+                      prefixIcon: const Icon(Icons.format_list_numbered),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15)),
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  
+                  // Notes Field
+                  TextFormField(
+                    controller: noteController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: "Notes (optional)",
+                      prefixIcon: const Icon(Icons.note),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(15)),
+                      filled: true,
+                    ),
+                  ),
+                  const SizedBox(height: 25),
+                  
+                  // Save Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final name = nameController.text.trim();
+                        final quantity = int.tryParse(quantityController.text.trim()) ?? 1;
+                        final note = noteController.text.trim();
 
-                  if (name.isEmpty || selectedExpiryDate == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("Please fill all required fields")),
+                        if (name.isEmpty || selectedExpiryDate == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Please fill all required fields"),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                          return;
+                        }
+
+                        try {
+                          if (docId == null) {
+                            await firestoreService.addFullFoodItem(
+                              name: name,
+                              purchaseDate: selectedPurchaseDate,
+                              expiryDate: selectedExpiryDate!,
+                              quantity: quantity,
+                              note: note,
+                            );
+                          } else {
+                            await firestoreService.updateFoodItem(
+                              docId: docId,
+                              name: name,
+                              purchaseDate: selectedPurchaseDate,
+                              expiryDate: selectedExpiryDate!,
+                              quantity: quantity,
+                              note: note,
+                            );
+                          }
+
+                          if (mounted) {
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Food "$name" saved'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text("Error: $e"),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      child: Text(
+                        docId == null ? "SAVE FOOD ITEM" : "UPDATE FOOD ITEM",
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+              ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[50],
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) {
+          return [
+            SliverAppBar(
+              expandedHeight: 180,
+              floating: false,
+              pinned: true,
+              flexibleSpace: FlexibleSpaceBar(
+                title: Text(
+                  'My Pantry',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 24,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black.withOpacity(0.5),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                ),
+                background: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.teal[700]!,
+                        Colors.teal[400]!,
+                      ],
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.kitchen,
+                      size: 60,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.search),
+                  onPressed: () {
+                    showSearch(
+                      context: context,
+                      delegate: FoodSearchDelegate(firestoreService),
                     );
-                    return;
-                  }
-
-                  try {
-                    if (docId == null) {
-                      await firestoreService.addFullFoodItem(
-                        name: name,
-                        purchaseDate: selectedPurchaseDate,
-                        expiryDate: selectedExpiryDate!,
-                        quantity: quantity,
-                        note: note,
-                      );
-                    } else {
-                      await firestoreService.updateFoodItem(
-                        docId: docId,
-                        name: name,
-                        purchaseDate: selectedPurchaseDate,
-                        expiryDate: selectedExpiryDate!,
-                        quantity: quantity,
-                        note: note,
-                      );
-                    }
-
-                    if (mounted) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Food "$name" saved')),
-                      );
-                    }
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Error: $e")),
-                      );
-                    }
-                  }
-                },
-                child: Text(docId == null ? "Save" : "Update"),
-              ),
-            ],
-          );
+                  },
+                ),
+              ],
+            ),
+          ];
         },
-      ),
-    );
-  }
+        body: StreamBuilder<QuerySnapshot>(
+          stream: firestoreService.getFoods(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
 
-  Widget _buildInputField(TextEditingController controller, String label,
-      {TextInputType keyboardType = TextInputType.text, int maxLines = 1}) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      maxLines: maxLines,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.teal),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-      ),
-    );
-  }
+            final foods = snapshot.data!.docs;
 
-  Widget _buildDatePickerTile({required String title, required VoidCallback onTap}) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      title: Text(title, style: const TextStyle(color: Colors.teal)),
-      trailing: const Icon(Icons.calendar_today, color: Colors.teal),
-      onTap: onTap,
+            if (foods.isEmpty) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.food_bank,
+                      size: 60,
+                      color: Colors.grey[400],
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      "No food items yet",
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      "Tap the + button to add your first item",
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.only(top: 10),
+              itemCount: foods.length,
+              itemBuilder: (context, index) {
+                final docId = foods[index].id;
+                final data = foods[index].data() as Map<String, dynamic>;
+
+                final name = data['name'] ?? '';
+                final purchaseDate = (data['purchaseDate'] as Timestamp).toDate();
+                final expiryDate = (data['expiryDate'] as Timestamp).toDate();
+                final quantity = data['quantity'] ?? 1;
+                final note = data['note'] ?? '';
+
+                final daysUntilExpiry = expiryDate.difference(DateTime.now()).inDays;
+                final isExpired = daysUntilExpiry < 0;
+                final isExpiringSoon = daysUntilExpiry <= 3 && !isExpired;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
+                  child: Slidable(
+                    endActionPane: ActionPane(
+                      motion: const DrawerMotion(),
+                      children: [
+                        SlidableAction(
+                          onPressed: (context) async {
+                            final shouldDelete = await _confirmDelete(context);
+                            if (shouldDelete) {
+                              await firestoreService.deleteFoodItem(docId);
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Food item deleted"),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          icon: Icons.delete,
+                          label: 'Delete',
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ],
+                    ),
+                    child: Card(
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          _showAddOrEditFoodDialog(
+                            context,
+                            docId: docId,
+                            name: name,
+                            purchaseDate: purchaseDate,
+                            expiryDate: expiryDate,
+                            quantity: quantity,
+                            note: note,
+                          );
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              // Food Icon with Status
+                              Container(
+                                width: 50,
+                                height: 50,
+                                decoration: BoxDecoration(
+                                  color: isExpired
+                                      ? Colors.red[50]
+                                      : isExpiringSoon
+                                          ? Colors.orange[50]
+                                          : Colors.teal[50],
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.fastfood,
+                                  color: isExpired
+                                      ? Colors.red
+                                      : isExpiringSoon
+                                          ? Colors.orange
+                                          : Colors.teal,
+                                ),
+                              ),
+                              const SizedBox(width: 15),
+                              
+                              // Food Details
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      name,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "Qty: $quantity • Purchased: ${DateFormat.yMMMd().format(purchaseDate)}",
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              
+                              // Expiry Info
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isExpired
+                                      ? Colors.red[50]
+                                      : isExpiringSoon
+                                          ? Colors.orange[50]
+                                          : Colors.teal[50],
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  isExpired
+                                      ? "Expired"
+                                      : isExpiringSoon
+                                          ? "Expires soon"
+                                          : "Exp: ${DateFormat.MMMd().format(expiryDate)}",
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: isExpired
+                                        ? Colors.red
+                                        : isExpiringSoon
+                                            ? Colors.orange
+                                            : Colors.teal,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddOrEditFoodDialog(context),
+        backgroundColor: Colors.teal,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        icon: const Icon(Icons.add),
+        label: const Text("Add Food"),
+      ),
     );
   }
 
@@ -190,189 +581,27 @@ class _FoodsPageState extends State<FoodsPage> {
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Confirm Deletion", style: TextStyle(color: Colors.red)),
+        title: const Text("Confirm Deletion"),
         content: const Text("Are you sure you want to delete this food item?"),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+            child: const Text("Cancel"),
           ),
-          ElevatedButton(
+          TextButton(
             onPressed: () {
               confirm = true;
               Navigator.of(context).pop();
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red,
+            ),
             child: const Text("Delete"),
           ),
         ],
       ),
     );
     return confirm;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFff9a9e), Color(0xFFfad0c4)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.pinkAccent.withOpacity(0.4),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(12),
-              child: const Icon(Icons.fastfood, color: Colors.white, size: 30),
-            ),
-            const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'My Foods',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                    letterSpacing: 1.2,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black38,
-                        offset: Offset(1, 1),
-                        blurRadius: 6,
-                      ),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Track your food items',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white70,
-                    fontStyle: FontStyle.italic,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-        backgroundColor: Colors.teal,
-        elevation: 10,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Colors.teal, Colors.cyan],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: firestoreService.getFoods(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final foods = snapshot.data!.docs;
-
-          if (foods.isEmpty) {
-            return const Center(child: Text("No food items found"));
-          }
-
-          return ListView.builder(
-            itemCount: foods.length,
-            itemBuilder: (context, index) {
-              final docId = foods[index].id;
-              final data = foods[index].data() as Map<String, dynamic>;
-
-              final name = data['name'] ?? '';
-              final purchaseDate = (data['purchaseDate'] as Timestamp).toDate();
-              final expiryDate = (data['expiryDate'] as Timestamp).toDate();
-              final quantity = data['quantity'] ?? 1;
-              final note = data['note'] ?? '';
-
-              final isExpired = expiryDate.isBefore(DateTime.now());
-
-              return Dismissible(
-                key: Key(docId),
-                direction: DismissDirection.endToStart,
-                background: Container(
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  color: Colors.red,
-                  child: const Icon(Icons.delete, color: Colors.white),
-                ),
-                confirmDismiss: (_) => _confirmDelete(context),
-                onDismissed: (_) async {
-                  await firestoreService.deleteFoodItem(docId);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Food item deleted successfully")),
-                  );
-                },
-                child: GestureDetector(
-                  onLongPress: () {
-                    _showAddOrEditFoodDialog(
-                      context,
-                      docId: docId,
-                      name: name,
-                      purchaseDate: purchaseDate,
-                      expiryDate: expiryDate,
-                      quantity: quantity,
-                      note: note,
-                    );
-                  },
-                  child: Card(
-                    margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-                    child: ListTile(
-                      leading: Icon(Icons.fastfood,
-                          color: isExpired ? Colors.red : Colors.teal),
-                      title: Text(name),
-                      subtitle: Text(
-                        "Qty: $quantity | Exp: ${DateFormat.yMMMd().format(expiryDate)}",
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          );
-        },
-      ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: 'scanner',
-            onPressed: _startScanner,
-            backgroundColor: Colors.pink,
-            child: const Icon(Icons.qr_code_scanner),
-          ),
-          const SizedBox(height: 10),
-          FloatingActionButton(
-            heroTag: 'manual',
-            onPressed: () => _showAddOrEditFoodDialog(context),
-            backgroundColor: Colors.teal,
-            child: const Icon(Icons.add),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -384,15 +613,155 @@ class BarcodeScannerPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Scan Barcode")),
-      body: MobileScanner(
-        onDetect: (barcodeCapture) {
-          final barcode = barcodeCapture.barcodes.first.rawValue;
-          if (barcode != null) {
-            onScanned(barcode);
-          }
+      appBar: AppBar(
+        title: const Text("Scan Barcode"),
+        centerTitle: true,
+      ),
+      body: Stack(
+        children: [
+          MobileScanner(
+            onDetect: (barcodeCapture) {
+              final barcode = barcodeCapture.barcodes.first.rawValue;
+              if (barcode != null) {
+                Navigator.of(context).pop();
+                onScanned(barcode);
+              }
+            },
+          ),
+          Center(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: Colors.teal,
+                  width: 3,
+                ),
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 30,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20, vertical: 10),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text(
+                  "Align barcode within the frame",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class FoodSearchDelegate extends SearchDelegate {
+  final FirestoreService firestoreService;
+
+  FoodSearchDelegate(this.firestoreService);
+
+  @override
+  List<Widget> buildActions(BuildContext context) {
+    return [
+      IconButton(
+        icon: const Icon(Icons.clear),
+        onPressed: () {
+          query = '';
         },
       ),
+    ];
+  }
+
+  @override
+  Widget buildLeading(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      onPressed: () {
+        close(context, null);
+      },
+    );
+  }
+
+  @override
+  Widget buildResults(BuildContext context) {
+    return _buildSearchResults();
+  }
+
+  @override
+  Widget buildSuggestions(BuildContext context) {
+    return _buildSearchResults();
+  }
+
+  Widget _buildSearchResults() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: firestoreService.getFoods(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final foods = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final name = data['name']?.toString().toLowerCase() ?? '';
+          return name.contains(query.toLowerCase());
+        }).toList();
+
+        if (foods.isEmpty) {
+          return Center(
+            child: Text(
+              "No results for '$query'",
+              style: const TextStyle(fontSize: 16),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          itemCount: foods.length,
+          itemBuilder: (context, index) {
+            final docId = foods[index].id;
+            final data = foods[index].data() as Map<String, dynamic>;
+
+            final name = data['name'] ?? '';
+            final expiryDate = (data['expiryDate'] as Timestamp).toDate();
+            final quantity = data['quantity'] ?? 1;
+
+            return ListTile(
+              leading: const Icon(Icons.fastfood),
+              title: Text(name),
+              subtitle: Text(
+                "Qty: $quantity • Exp: ${DateFormat.yMMMd().format(expiryDate)}",
+              ),
+              onTap: () {
+                close(context, null);
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => Scaffold(
+                      appBar: AppBar(title: Text(name)),
+                      body: Center(
+                        child: Text("Details for $name"),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
     );
   }
 }
