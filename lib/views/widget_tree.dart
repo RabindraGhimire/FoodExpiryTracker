@@ -64,8 +64,8 @@ class WidgetTree extends StatelessWidget {
           return const LoginPage();
         }
 
-        final usernameFirstLetter = user.displayName?.isNotEmpty == true 
-            ? user.displayName![0] 
+        final usernameFirstLetter = user.email?.isNotEmpty == true 
+            ? user.email![0].toUpperCase() 
             : 'U';
 
         return Scaffold(
