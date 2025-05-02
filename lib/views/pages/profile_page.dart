@@ -351,14 +351,14 @@ class _ProfilePageState extends State<ProfilePage> {
                   alignment: Alignment.bottomCenter,
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 20),
-                    child: Text(
-                      'Your Profile',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.9),
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500
-                      ),
-                    ),
+                    // child: Text(
+                    //   'Your Profile',
+                    //   style: TextStyle(
+                    //     color: Colors.white.withOpacity(0.9),
+                    //     fontSize: 18,
+                    //     fontWeight: FontWeight.w500
+                    //   ),
+                    // ),
                   ),
                 ),
               ),
