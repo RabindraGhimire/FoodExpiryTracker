@@ -13,20 +13,6 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      // appBar: AppBar(
-      //   title: const Text('Food Tracker', style: TextStyle(fontWeight: FontWeight.bold)),
-      //   backgroundColor: Colors.green[700],
-      //   centerTitle: true,
-      //   elevation: 0,
-      //   actions: [
-      //     IconButton(
-      //       icon: const Icon(Icons.refresh),
-      //       onPressed: () {
-      //         // This will automatically refresh the StreamBuilder
-      //       },
-      //     ),
-      //   ],
-      // ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: StreamBuilder<QuerySnapshot>(
@@ -106,7 +92,7 @@ class HomePage extends StatelessWidget {
             // Get urgent foods (expiring soonest)
             List<Map<String, dynamic>> urgentFoods = foods.where((food) {
               final expiryDate = (food['expiryDate'] as Timestamp).toDate();
-              return expiryDate.isAfter(now);
+              return expiryDate.isAfter(now) && expiryDate.isBefore(inOneWeek);
             }).toList();
             
             urgentFoods.sort((a, b) {
@@ -115,7 +101,17 @@ class HomePage extends StatelessWidget {
               return aDate.compareTo(bDate);
             });
             
-            final top3UrgentFoods = urgentFoods.take(3).toList();
+            // Get expired foods (most recently expired first)
+            List<Map<String, dynamic>> expiredFoodItems = foods.where((food) {
+              final expiryDate = (food['expiryDate'] as Timestamp).toDate();
+              return expiryDate.isBefore(now);
+            }).toList();
+            
+            expiredFoodItems.sort((a, b) {
+              final aDate = (a['expiryDate'] as Timestamp).toDate();
+              final bDate = (b['expiryDate'] as Timestamp).toDate();
+              return bDate.compareTo(aDate); // Sort in reverse order (most recent first)
+            });
 
             return SingleChildScrollView(
               child: Column(
@@ -166,8 +162,30 @@ class HomePage extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   
+                  // Expired foods section
+                  if (expiredFoodItems.isNotEmpty) ...[
+                    const Text(
+                      'Expired Items',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'These items have passed their expiry date',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...expiredFoodItems.map((food) => _buildFoodItemCard(context, food)).toList(),
+                    const SizedBox(height: 24),
+                  ],
+                  
                   // Urgent foods section
-                  if (top3UrgentFoods.isNotEmpty) ...[
+                  if (urgentFoods.isNotEmpty) ...[
                     const Text(
                       'Urgent Items',
                       style: TextStyle(
@@ -175,8 +193,16 @@ class HomePage extends StatelessWidget {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'These items will expire within a week',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey[600],
+                      ),
+                    ),
                     const SizedBox(height: 12),
-                    ...top3UrgentFoods.map((food) => _buildFoodItemCard(context, food)).toList(),
+                    ...urgentFoods.map((food) => _buildFoodItemCard(context, food)).toList(),
                     const SizedBox(height: 16),
                   ],
                   
@@ -187,36 +213,26 @@ class HomePage extends StatelessWidget {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => FoodsPage(showAddForm: true,)),
+                          MaterialPageRoute(builder: (context) => FoodsPage(showAddForm: true)),
                         );
                       },
                       icon: const Icon(Icons.list_alt),
                       label: const Text('View All Items'),
                       style: ElevatedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        backgroundColor: Colors.green[700],
+                        backgroundColor: Colors.teal[500],
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ),
-              )],
+                ],
               ),
             );
           },
         ),
       ),
-      // floatingActionButton: FloatingActionButton(
-      //   onPressed: () {
-      //     // Navigate to Add Food Page
-      //     Navigator.push(
-      //       context,
-      //       MaterialPageRoute(builder: (context) => FoodsPage(showAddForm: true)),
-      //     );
-      //   },
-      //   backgroundColor: Colors.green[700],
-      //   child: const Icon(Icons.add),
-      // ),
     );
   }
 
