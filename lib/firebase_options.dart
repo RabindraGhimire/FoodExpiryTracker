@@ -41,48 +41,47 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyABfz6mgfV2J4LRYEOHVY0jU57sr4s2kSs',
-    appId: '1:186092571144:web:368a5e757bacf16bcf5fbd',
-    messagingSenderId: '186092571144',
-    projectId: 'food-expiry-tracker-dddf6',
-    authDomain: 'food-expiry-tracker-dddf6.firebaseapp.com',
-    storageBucket: 'food-expiry-tracker-dddf6.firebasestorage.app',
-    measurementId: 'G-YKEVBTND7N',
+    apiKey: 'AIzaSyC1BFKxhNuUyUKiFZ23tigWT2p0X9pgvNY',
+    appId: '1:305403273162:web:85cd97872886cdb9377933',
+    messagingSenderId: '305403273162',
+    projectId: 'foodexpiry6709',
+    authDomain: 'foodexpiry6709.firebaseapp.com',
+    storageBucket: 'foodexpiry6709.firebasestorage.app',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyB5Nt2GaPk6pcq62Y81r8SVx8xuEoJrzX4',
-    appId: '1:186092571144:android:64d28cc0365d0df8cf5fbd',
-    messagingSenderId: '186092571144',
-    projectId: 'food-expiry-tracker-dddf6',
-    storageBucket: 'food-expiry-tracker-dddf6.firebasestorage.app',
+    apiKey: 'AIzaSyANvUUtuy29KTEAFp2aA8NEjpEDuZmB950',
+    appId: '1:305403273162:android:ce74d9d778eda71d377933',
+    messagingSenderId: '305403273162',
+    projectId: 'foodexpiry6709',
+    storageBucket: 'foodexpiry6709.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyBTsE6n4a4wYlzVAA7sUHwqFmX6WOyH3Ns',
-    appId: '1:186092571144:ios:e80ac7f7612222f7cf5fbd',
-    messagingSenderId: '186092571144',
-    projectId: 'food-expiry-tracker-dddf6',
-    storageBucket: 'food-expiry-tracker-dddf6.firebasestorage.app',
-    iosBundleId: 'com.example.firstproject',
+    apiKey: 'AIzaSyAgRDpNqhXTxFMOQfJ1N70-2R2Ygew2nVo',
+    appId: '1:305403273162:ios:b5014685618bf646377933',
+    messagingSenderId: '305403273162',
+    projectId: 'foodexpiry6709',
+    storageBucket: 'foodexpiry6709.firebasestorage.app',
+    iosBundleId: 'com.rabindra.foodtracker',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyBTsE6n4a4wYlzVAA7sUHwqFmX6WOyH3Ns',
-    appId: '1:186092571144:ios:e80ac7f7612222f7cf5fbd',
-    messagingSenderId: '186092571144',
-    projectId: 'food-expiry-tracker-dddf6',
-    storageBucket: 'food-expiry-tracker-dddf6.firebasestorage.app',
+    apiKey: 'AIzaSyAgRDpNqhXTxFMOQfJ1N70-2R2Ygew2nVo',
+    appId: '1:305403273162:ios:e08095258a6620c8377933',
+    messagingSenderId: '305403273162',
+    projectId: 'foodexpiry6709',
+    storageBucket: 'foodexpiry6709.firebasestorage.app',
     iosBundleId: 'com.example.firstproject',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyABfz6mgfV2J4LRYEOHVY0jU57sr4s2kSs',
-    appId: '1:186092571144:web:488924da47c33148cf5fbd',
-    messagingSenderId: '186092571144',
-    projectId: 'food-expiry-tracker-dddf6',
-    authDomain: 'food-expiry-tracker-dddf6.firebaseapp.com',
-    storageBucket: 'food-expiry-tracker-dddf6.firebasestorage.app',
-    measurementId: 'G-9L3JT02KPT',
+    apiKey: 'AIzaSyC1BFKxhNuUyUKiFZ23tigWT2p0X9pgvNY',
+    appId: '1:305403273162:web:168b8d12e1a62ce9377933',
+    messagingSenderId: '305403273162',
+    projectId: 'foodexpiry6709',
+    authDomain: 'foodexpiry6709.firebaseapp.com',
+    storageBucket: 'foodexpiry6709.firebasestorage.app',
   );
+
 }

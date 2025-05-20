@@ -26,62 +26,111 @@ class _SignUpPageState extends State<SignUpPage> {
         final email = _emailController.text.trim();
         final password = _passwordController.text.trim();
 
-        // Create user with Firebase Authentication
-        UserCredential userCredential = await FirebaseAuth.instance
+        // 1. Create Firebase Auth user
+        final UserCredential userCredential = await FirebaseAuth.instance
             .createUserWithEmailAndPassword(email: email, password: password);
 
-        final uid = userCredential.user!.uid;
+        // 2. Get created user reference
+        final User? user = userCredential.user;
+        if (user == null || !mounted) return;
 
-        // Save additional user info to Firestore
-        await FirebaseFirestore.instance.collection('profiles').doc(uid).set({
-          'first_name': _firstNameController.text.trim(),
-          'last_name': _lastNameController.text.trim(),
-          'email': email,
-          'phone': _phoneController.text.trim(),
-          'address': _addressController.text.trim(),
-          'created_at': FieldValue.serverTimestamp(),
-        });
+        // 3. Save to Firestore with security rule compliance
+        await FirebaseFirestore.instance
+            .collection('profiles')
+            .doc(user.uid)
+            .set({
+              'first_name': _firstNameController.text.trim(),
+              'last_name': _lastNameController.text.trim(),
+              'email': email,
+              'phone': _phoneController.text.trim(),
+              'address': _addressController.text.trim(),
+              'created_at': FieldValue.serverTimestamp(),
+              'updated_at': FieldValue.serverTimestamp(),
+            });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Sign-up successful!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Clear fields
-        _firstNameController.clear();
-        _lastNameController.clear();
-        _emailController.clear();
-        _phoneController.clear();
-        _passwordController.clear();
-        _addressController.clear();
-
-        Navigator.pop(context); // Go back to Login page
-
+        // 4. Clear form and navigate
+        _clearForm();
+        if (!mounted) return;
+        _showSuccessAndNavigate();
       } on FirebaseAuthException catch (e) {
-        String errorMessage = "An error occurred";
-        if (e.code == 'weak-password') {
-          errorMessage = "The password provided is too weak";
-        } else if (e.code == 'email-already-in-use') {
-          errorMessage = "The account already exists for that email";
-        }
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _handleAuthError(e);
+      } on FirebaseException catch (e) {
+        _handleFirestoreError(e);
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Error: ${e.toString()}"),
-            backgroundColor: Colors.red,
-          ),
-        );
+        _handleGenericError(e);
       }
     } else if (!_acceptTerms) {
+      _showTermsWarning();
+    }
+  }
+
+  void _clearForm() {
+    _firstNameController.clear();
+    _lastNameController.clear();
+    _emailController.clear();
+    _phoneController.clear();
+    _passwordController.clear();
+    _addressController.clear();
+  }
+
+  void _showSuccessAndNavigate() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("Account created successfully!"),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    Navigator.pop(context);
+  }
+
+  void _handleAuthError(FirebaseAuthException e) {
+    String message = "Signup failed: ";
+    switch (e.code) {
+      case 'weak-password':
+        message += "Password must be at least 6 characters";
+        break;
+      case 'email-already-in-use':
+        message += "Account already exists for this email";
+        break;
+      case 'invalid-email':
+        message += "Invalid email address";
+        break;
+      default:
+        message += "Authentication error";
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _handleFirestoreError(FirebaseException e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Database error: ${e.message ?? 'Unknown error'}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleGenericError(dynamic e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error: ${e.toString()}"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showTermsWarning() {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text("Please accept the terms and conditions"),
@@ -120,15 +169,31 @@ class _SignUpPageState extends State<SignUpPage> {
                 child: Column(
                   children: [
                     const SizedBox(height: 10),
-                    _buildInputField(_firstNameController, "First Name", Icons.person),
+                    _buildInputField(
+                      _firstNameController,
+                      "First Name",
+                      Icons.person,
+                    ),
                     const SizedBox(height: 16),
-                    _buildInputField(_lastNameController, "Last Name", Icons.person),
+                    _buildInputField(
+                      _lastNameController,
+                      "Last Name",
+                      Icons.person,
+                    ),
                     const SizedBox(height: 16),
-                    _buildInputField(_emailController, "Email", Icons.email, 
-                        keyboardType: TextInputType.emailAddress),
+                    _buildInputField(
+                      _emailController,
+                      "Email",
+                      Icons.email,
+                      keyboardType: TextInputType.emailAddress,
+                    ),
                     const SizedBox(height: 16),
-                    _buildInputField(_phoneController, "Phone Number", Icons.phone, 
-                        keyboardType: TextInputType.phone),
+                    _buildInputField(
+                      _phoneController,
+                      "Phone Number",
+                      Icons.phone,
+                      keyboardType: TextInputType.phone,
+                    ),
                     const SizedBox(height: 16),
                     _buildPasswordField(),
                     const SizedBox(height: 16),
@@ -149,8 +214,12 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  Widget _buildInputField(TextEditingController controller, String label, IconData icon,
-      {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildInputField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
@@ -180,18 +249,23 @@ class _SignUpPageState extends State<SignUpPage> {
           borderSide: const BorderSide(color: Colors.red, width: 2),
         ),
       ),
-      validator: (value) {
-        if (value == null || value.isEmpty) return "Please enter your $label";
-        if (label == "Email" &&
-            !RegExp(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").hasMatch(value)) {
-          return "Please enter a valid email";
-        }
-        if (label == "Phone Number" && value.length != 10) {
-          return "Phone number must be 10 digits";
-        }
-        return null;
-      },
+      validator: (value) => _validateField(value, label),
     );
+  }
+
+  String? _validateField(String? value, String label) {
+    if (value == null || value.isEmpty) return "Please enter your $label";
+
+    if (label == "Email" &&
+        !RegExp(r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$").hasMatch(value)) {
+      return "Invalid email format";
+    }
+
+    if (label == "Phone Number" && !RegExp(r"^[0-9]{10}$").hasMatch(value)) {
+      return "10-digit number required";
+    }
+
+    return null;
   }
 
   Widget _buildPasswordField() {
@@ -206,11 +280,7 @@ class _SignUpPageState extends State<SignUpPage> {
             _obscurePassword ? Icons.visibility : Icons.visibility_off,
             color: Colors.grey,
           ),
-          onPressed: () {
-            setState(() {
-              _obscurePassword = !_obscurePassword;
-            });
-          },
+          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
         ),
         filled: true,
         fillColor: Colors.grey.shade50,
@@ -218,26 +288,10 @@ class _SignUpPageState extends State<SignUpPage> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade300),
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.grey.shade300),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.teal, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red),
-        ),
-        focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.red, width: 2),
-        ),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) return "Please enter a password";
-        if (value.length < 6) return "Password must be at least 6 characters";
+        if (value.length < 6) return "Minimum 6 characters required";
         return null;
       },
     );
@@ -247,40 +301,32 @@ class _SignUpPageState extends State<SignUpPage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Transform.scale(
-          scale: 1.2,
-          child: Checkbox(
-            value: _acceptTerms,
-            onChanged: (bool? value) {
-              setState(() {
-                _acceptTerms = value ?? false;
-              });
-            },
-            activeColor: Colors.teal,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(4),
-            ),
-          ),
+        Checkbox(
+          value: _acceptTerms,
+          onChanged:
+              (bool? value) => setState(() => _acceptTerms = value ?? false),
+          activeColor: Colors.teal,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
         ),
-        const Expanded(
+        Expanded(
           child: Padding(
-            padding: EdgeInsets.only(top: 8.0),
+            padding: const EdgeInsets.only(top: 8.0),
             child: Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(text: "I agree to the "),
+                  const TextSpan(text: "I agree to the "),
                   TextSpan(
                     text: "Terms & Conditions",
                     style: TextStyle(
-                      color: Colors.teal,
+                      color: Colors.teal.shade700,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  TextSpan(text: " and "),
+                  const TextSpan(text: " and "),
                   TextSpan(
                     text: "Privacy Policy",
                     style: TextStyle(
-                      color: Colors.teal,
+                      color: Colors.teal.shade700,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -308,11 +354,8 @@ class _SignUpPageState extends State<SignUpPage> {
           elevation: 3,
         ),
         child: const Text(
-          "SIGN UP",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          "CREATE ACCOUNT",
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ),
     );
@@ -325,10 +368,10 @@ class _SignUpPageState extends State<SignUpPage> {
         const Text("Already have an account?"),
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text(
-            "Log In",
+          child: Text(
+            "Sign In",
             style: TextStyle(
-              color: Colors.teal,
+              color: Colors.teal.shade700,
               fontWeight: FontWeight.bold,
             ),
           ),

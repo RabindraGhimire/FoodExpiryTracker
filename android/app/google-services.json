@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "186092571144",
-    "project_id": "food-expiry-tracker-dddf6",
-    "storage_bucket": "food-expiry-tracker-dddf6.firebasestorage.app"
+    "project_number": "305403273162",
+    "project_id": "foodexpiry6709",
+    "storage_bucket": "foodexpiry6709.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:186092571144:android:64d28cc0365d0df8cf5fbd",
+        "mobilesdk_app_id": "1:305403273162:android:ce74d9d778eda71d377933",
         "android_client_info": {
           "package_name": "com.example.firstproject"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyB5Nt2GaPk6pcq62Y81r8SVx8xuEoJrzX4"
+          "current_key": "AIzaSyANvUUtuy29KTEAFp2aA8NEjpEDuZmB950"
         }
       ],
       "services": {
