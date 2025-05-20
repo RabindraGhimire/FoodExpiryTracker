@@ -49,6 +49,8 @@ dependencies:
   geolocator: ^14.0.0
   mobile_scanner: ^6.0.10
   flutter_slidable: ^4.0.0
+  firebase_database: ^11.3.5
+  firebase_storage: 12.4.5
 
 
 dev_dependencies:

@@ -27,11 +27,21 @@ class HomePage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 50, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 50,
+                      color: Colors.red,
+                    ),
                     const SizedBox(height: 16),
-                    const Text('Something went wrong!', style: TextStyle(fontSize: 18)),
+                    const Text(
+                      'Something went wrong!',
+                      style: TextStyle(fontSize: 18),
+                    ),
                     const SizedBox(height: 8),
-                    Text(snapshot.error.toString(), textAlign: TextAlign.center),
+                    Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 16),
                     ElevatedButton(
                       onPressed: () {
@@ -53,7 +63,10 @@ class HomePage extends StatelessWidget {
                     const SizedBox(height: 20),
                     const Text(
                       'Your inventory is empty',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     const Text(
@@ -65,52 +78,58 @@ class HomePage extends StatelessWidget {
               );
             }
 
-            final foods = snapshot.data!.docs.map((doc) {
-              return {
-                ...doc.data() as Map<String, dynamic>,
-                'id': doc.id,
-              };
-            }).toList();
+            final foods =
+                snapshot.data!.docs.map((doc) {
+                  return {...doc.data() as Map<String, dynamic>, 'id': doc.id};
+                }).toList();
 
             final now = DateTime.now();
             final inOneWeek = now.add(const Duration(days: 7));
 
             // Calculate statistics
             final totalFoods = foods.length;
-            final expiredFoods = foods.where((food) {
-              final expiryDate = (food['expiryDate'] as Timestamp).toDate();
-              return expiryDate.isBefore(now);
-            }).length;
+            final expiredFoods =
+                foods.where((food) {
+                  final expiryDate = (food['expiryDate'] as Timestamp).toDate();
+                  return expiryDate.isBefore(now);
+                }).length;
 
-            final almostExpiredFoods = foods.where((food) {
-              final expiryDate = (food['expiryDate'] as Timestamp).toDate();
-              return expiryDate.isAfter(now) && expiryDate.isBefore(inOneWeek);
-            }).length;
+            final almostExpiredFoods =
+                foods.where((food) {
+                  final expiryDate = (food['expiryDate'] as Timestamp).toDate();
+                  return expiryDate.isAfter(now) &&
+                      expiryDate.isBefore(inOneWeek);
+                }).length;
 
             final goodFoods = totalFoods - expiredFoods - almostExpiredFoods;
 
             // Get urgent foods (expiring soonest)
-            List<Map<String, dynamic>> urgentFoods = foods.where((food) {
-              final expiryDate = (food['expiryDate'] as Timestamp).toDate();
-              return expiryDate.isAfter(now) && expiryDate.isBefore(inOneWeek);
-            }).toList();
-            
+            List<Map<String, dynamic>> urgentFoods =
+                foods.where((food) {
+                  final expiryDate = (food['expiryDate'] as Timestamp).toDate();
+                  return expiryDate.isAfter(now) &&
+                      expiryDate.isBefore(inOneWeek);
+                }).toList();
+
             urgentFoods.sort((a, b) {
               final aDate = (a['expiryDate'] as Timestamp).toDate();
               final bDate = (b['expiryDate'] as Timestamp).toDate();
               return aDate.compareTo(bDate);
             });
-            
+
             // Get expired foods (most recently expired first)
-            List<Map<String, dynamic>> expiredFoodItems = foods.where((food) {
-              final expiryDate = (food['expiryDate'] as Timestamp).toDate();
-              return expiryDate.isBefore(now);
-            }).toList();
-            
+            List<Map<String, dynamic>> expiredFoodItems =
+                foods.where((food) {
+                  final expiryDate = (food['expiryDate'] as Timestamp).toDate();
+                  return expiryDate.isBefore(now);
+                }).toList();
+
             expiredFoodItems.sort((a, b) {
               final aDate = (a['expiryDate'] as Timestamp).toDate();
               final bDate = (b['expiryDate'] as Timestamp).toDate();
-              return bDate.compareTo(aDate); // Sort in reverse order (most recent first)
+              return bDate.compareTo(
+                aDate,
+              ); // Sort in reverse order (most recent first)
             });
 
             return SingleChildScrollView(
@@ -120,7 +139,7 @@ class HomePage extends StatelessWidget {
                   // Welcome section
                   _buildWelcomeSection(),
                   const SizedBox(height: 24),
-                  
+
                   // Stats cards in a row
                   SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
@@ -161,7 +180,7 @@ class HomePage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  
+
                   // Expired foods section
                   if (expiredFoodItems.isNotEmpty) ...[
                     const Text(
@@ -174,16 +193,15 @@ class HomePage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'These items have passed their expiry date',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 12),
-                    ...expiredFoodItems.map((food) => _buildFoodItemCard(context, food)).toList(),
+                    ...expiredFoodItems.map(
+                      (food) => _buildFoodItemCard(context, food),
+                    ),
                     const SizedBox(height: 24),
                   ],
-                  
+
                   // Urgent foods section
                   if (urgentFoods.isNotEmpty) ...[
                     const Text(
@@ -196,16 +214,15 @@ class HomePage extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'These items will expire within a week',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 12),
-                    ...urgentFoods.map((food) => _buildFoodItemCard(context, food)).toList(),
+                    ...urgentFoods.map(
+                      (food) => _buildFoodItemCard(context, food),
+                    ),
                     const SizedBox(height: 16),
                   ],
-                  
+
                   // View all button
                   SizedBox(
                     width: double.infinity,
@@ -213,7 +230,9 @@ class HomePage extends StatelessWidget {
                       onPressed: () {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (context) => FoodsPage(showAddForm: true)),
+                          MaterialPageRoute(
+                            builder: (context) => FoodsPage(showAddForm: true),
+                          ),
                         );
                       },
                       icon: const Icon(Icons.list_alt),
@@ -254,24 +273,24 @@ class HomePage extends StatelessWidget {
       children: [
         Text(
           '$greeting!',
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-          ),
+          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
           "Here's your food inventory status",
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[600],
-          ),
+          style: TextStyle(fontSize: 16, color: Colors.grey[600]),
         ),
       ],
     );
   }
 
-  Widget _buildStatCard(BuildContext context, String title, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    BuildContext context,
+    String title,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       width: MediaQuery.of(context).size.width * 0.4,
       padding: const EdgeInsets.all(16),
@@ -303,7 +322,10 @@ class HomePage extends StatelessWidget {
               const Spacer(),
               if (title == 'Expired' && value != '0')
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -322,19 +344,10 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(title, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
         ],
       ),
     );
@@ -345,10 +358,10 @@ class HomePage extends StatelessWidget {
     final now = DateTime.now();
     final difference = expiryDate.difference(now);
     final daysLeft = difference.inDays;
-    
+
     Color statusColor;
     String statusText;
-    
+
     if (expiryDate.isBefore(now)) {
       statusColor = Colors.red;
       statusText = 'Expired';
@@ -362,12 +375,10 @@ class HomePage extends StatelessWidget {
       statusColor = Colors.green;
       statusText = 'Good';
     }
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         borderRadius: BorderRadius.circular(12),
         onTap: () {
@@ -384,11 +395,7 @@ class HomePage extends StatelessWidget {
                   color: Colors.grey[200],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
-                  Icons.fastfood,
-                  size: 30,
-                  color: Colors.grey[600],
-                ),
+                child: Icon(Icons.fastfood, size: 30, color: Colors.grey[600]),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -405,16 +412,16 @@ class HomePage extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       'Expires: ${DateFormat('MMM dd, yyyy').format(expiryDate)}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),

@@ -17,298 +17,435 @@ class _ProfilePageState extends State<ProfilePage> {
 
   User? get currentUser => _auth.currentUser;
 
-  void _showEditProfileDialog(BuildContext context,
-      {String? docId, String? firstname, String? lastname, String? email, String? contactno}) {
-    final TextEditingController firstNameController = TextEditingController(text: firstname);
-    final TextEditingController lastNameController = TextEditingController(text: lastname);
-    final TextEditingController emailController = TextEditingController(text: email);
-    final TextEditingController phoneController = TextEditingController(text: contactno);
+  void _showEditProfileDialog(
+    BuildContext context, {
+    String? docId,
+    String? firstname,
+    String? lastname,
+    String? email,
+    String? contactno,
+  }) {
+    final TextEditingController firstNameController = TextEditingController(
+      text: firstname,
+    );
+    final TextEditingController lastNameController = TextEditingController(
+      text: lastname,
+    );
+    final TextEditingController emailController = TextEditingController(
+      text: email,
+    );
+    final TextEditingController phoneController = TextEditingController(
+      text: contactno,
+    );
 
     showDialog(
       context: context,
-      builder: (_) => StatefulBuilder(builder: (context, setState) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  docId == null ? "Create Profile" : "Edit Profile",
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal,
+      builder:
+          (_) => StatefulBuilder(
+            builder: (context, setState) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        docId == null ? "Create Profile" : "Edit Profile",
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildInputField(
+                        firstNameController,
+                        "First Name",
+                        Icons.person,
+                      ),
+                      const SizedBox(height: 15),
+                      _buildInputField(
+                        lastNameController,
+                        "Last Name",
+                        Icons.person,
+                      ),
+                      const SizedBox(height: 15),
+                      _buildInputField(
+                        emailController,
+                        "Email",
+                        Icons.email,
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      const SizedBox(height: 15),
+                      _buildInputField(
+                        phoneController,
+                        "Phone",
+                        Icons.phone,
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 25),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text(
+                              'CANCEL',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: () async {
+                              final firstName = firstNameController.text.trim();
+                              final lastName = lastNameController.text.trim();
+                              final email = emailController.text.trim();
+                              final phone = phoneController.text.trim();
+
+                              if (firstName.isEmpty ||
+                                  lastName.isEmpty ||
+                                  email.isEmpty ||
+                                  phone.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Please fill all required fields",
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              Navigator.of(context).pop();
+
+                              try {
+                                if (docId == null) {
+                                  await firestoreService.addProfile(
+                                    userId: currentUser!.uid,
+                                    firstname: firstName,
+                                    lastname: lastName,
+                                    email: email,
+                                    contactno: phone,
+                                  );
+                                } else {
+                                  await firestoreService.updateProfile(
+                                    docId: docId,
+                                    firstname: firstName,
+                                    lastname: lastName,
+                                    email: email,
+                                    contactno: phone,
+                                  );
+                                }
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      "Profile \"$firstName $lastName\" saved",
+                                    ),
+                                  ),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text("Error: $e")),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: Text(
+                              docId == null ? "SAVE" : "UPDATE",
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                _buildInputField(firstNameController, "First Name", Icons.person),
-                const SizedBox(height: 15),
-                _buildInputField(lastNameController, "Last Name", Icons.person),
-                const SizedBox(height: 15),
-                _buildInputField(emailController, "Email", Icons.email, keyboardType: TextInputType.emailAddress),
-                const SizedBox(height: 15),
-                _buildInputField(phoneController, "Phone", Icons.phone, keyboardType: TextInputType.phone),
-                const SizedBox(height: 25),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final firstName = firstNameController.text.trim();
-                        final lastName = lastNameController.text.trim();
-                        final email = emailController.text.trim();
-                        final phone = phoneController.text.trim();
-
-                        if (firstName.isEmpty || lastName.isEmpty || email.isEmpty || phone.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Please fill all required fields")));
-                          return;
-                        }
-
-                        Navigator.of(context).pop();
-
-                        try {
-                          if (docId == null) {
-                            await firestoreService.addProfile(
-                              userId: currentUser!.uid,
-                              firstname: firstName,
-                              lastname: lastName,
-                              email: email,
-                              contactno: phone,
-                            );
-                          } else {
-                            await firestoreService.updateProfile(
-                              docId: docId,
-                              firstname: firstName,
-                              lastname: lastName,
-                              email: email,
-                              contactno: phone,
-                            );
-                          }
-
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Profile \"$firstName $lastName\" saved")));
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Error: $e")));
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),),
-                      child: Text(docId == null ? "SAVE" : "UPDATE", 
-                          style: const TextStyle(fontSize: 16)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              );
+            },
           ),
-        );
-      }),
     );
   }
 
   void _showChangePasswordDialog(BuildContext context) {
-    final TextEditingController currentPasswordController = TextEditingController();
+    final TextEditingController currentPasswordController =
+        TextEditingController();
     final TextEditingController newPasswordController = TextEditingController();
-    final TextEditingController confirmPasswordController = TextEditingController();
+    final TextEditingController confirmPasswordController =
+        TextEditingController();
     bool obscureCurrentPassword = true;
     bool obscureNewPassword = true;
     bool obscureConfirmPassword = true;
 
     showDialog(
       context: context,
-      builder: (_) => StatefulBuilder(builder: (context, setState) {
-        return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "Change Password",
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.teal,
+      builder:
+          (_) => StatefulBuilder(
+            builder: (context, setState) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        "Change Password",
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.teal,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: currentPasswordController,
+                        obscureText: obscureCurrentPassword,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(
+                            Icons.lock,
+                            color: Colors.teal,
+                          ),
+                          labelText: "Current Password",
+                          floatingLabelBehavior: FloatingLabelBehavior.never,
+                          filled: true,
+                          fillColor: Colors.grey.withOpacity(0.1),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 16,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureCurrentPassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                obscureCurrentPassword =
+                                    !obscureCurrentPassword;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      TextField(
+                        controller: newPasswordController,
+                        obscureText: obscureNewPassword,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            color: Colors.teal,
+                          ),
+                          labelText: "New Password",
+                          floatingLabelBehavior: FloatingLabelBehavior.never,
+                          filled: true,
+                          fillColor: Colors.grey.withOpacity(0.1),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 16,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureNewPassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                obscureNewPassword = !obscureNewPassword;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 15),
+                      TextField(
+                        controller: confirmPasswordController,
+                        obscureText: obscureConfirmPassword,
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(
+                            Icons.lock_reset,
+                            color: Colors.teal,
+                          ),
+                          labelText: "Confirm New Password",
+                          floatingLabelBehavior: FloatingLabelBehavior.never,
+                          filled: true,
+                          fillColor: Colors.grey.withOpacity(0.1),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 16,
+                          ),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              obscureConfirmPassword
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                obscureConfirmPassword =
+                                    !obscureConfirmPassword;
+                              });
+                            },
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 25),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(context),
+                            child: const Text(
+                              'CANCEL',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          ElevatedButton(
+                            onPressed: () async {
+                              final currentPassword =
+                                  currentPasswordController.text.trim();
+                              final newPassword =
+                                  newPasswordController.text.trim();
+                              final confirmPassword =
+                                  confirmPasswordController.text.trim();
+
+                              if (currentPassword.isEmpty ||
+                                  newPassword.isEmpty ||
+                                  confirmPassword.isEmpty) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Please fill all password fields",
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (newPassword != confirmPassword) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("New passwords don't match"),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (newPassword.length < 6) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Password must be at least 6 characters",
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              try {
+                                // Reauthenticate user
+                                final credential = EmailAuthProvider.credential(
+                                  email: currentUser!.email!,
+                                  password: currentPassword,
+                                );
+                                await currentUser!.reauthenticateWithCredential(
+                                  credential,
+                                );
+
+                                // Change password
+                                await currentUser!.updatePassword(newPassword);
+
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Password changed successfully",
+                                    ),
+                                  ),
+                                );
+                              } on FirebaseAuthException catch (e) {
+                                String errorMessage = "Password change failed";
+                                if (e.code == 'wrong-password') {
+                                  errorMessage =
+                                      "Current password is incorrect";
+                                } else if (e.code == 'requires-recent-login') {
+                                  errorMessage =
+                                      "This operation is sensitive and requires recent authentication. Log in again before retrying this request.";
+                                }
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text(errorMessage)),
+                                );
+                              } catch (e) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text("Error: ${e.toString()}"),
+                                  ),
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                              child: Text(
+                                'CHANGE',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                TextField(
-                  controller: currentPasswordController,
-                  obscureText: obscureCurrentPassword,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock, color: Colors.teal),
-                    labelText: "Current Password",
-                    floatingLabelBehavior: FloatingLabelBehavior.never,
-                    filled: true,
-                    fillColor: Colors.grey.withOpacity(0.1),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureCurrentPassword ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          obscureCurrentPassword = !obscureCurrentPassword;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: newPasswordController,
-                  obscureText: obscureNewPassword,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock_outline, color: Colors.teal),
-                    labelText: "New Password",
-                    floatingLabelBehavior: FloatingLabelBehavior.never,
-                    filled: true,
-                    fillColor: Colors.grey.withOpacity(0.1),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureNewPassword ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          obscureNewPassword = !obscureNewPassword;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                TextField(
-                  controller: confirmPasswordController,
-                  obscureText: obscureConfirmPassword,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock_reset, color: Colors.teal),
-                    labelText: "Confirm New Password",
-                    floatingLabelBehavior: FloatingLabelBehavior.never,
-                    filled: true,
-                    fillColor: Colors.grey.withOpacity(0.1),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        obscureConfirmPassword ? Icons.visibility : Icons.visibility_off,
-                        color: Colors.grey,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          obscureConfirmPassword = !obscureConfirmPassword;
-                        });
-                      },
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 25),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('CANCEL', style: TextStyle(color: Colors.grey)),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton(
-                      onPressed: () async {
-                        final currentPassword = currentPasswordController.text.trim();
-                        final newPassword = newPasswordController.text.trim();
-                        final confirmPassword = confirmPasswordController.text.trim();
-
-                        if (currentPassword.isEmpty || 
-                            newPassword.isEmpty || 
-                            confirmPassword.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Please fill all password fields")));
-                          return;
-                        }
-
-                        if (newPassword != confirmPassword) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("New passwords don't match")));
-                          return;
-                        }
-
-                        if (newPassword.length < 6) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Password must be at least 6 characters")));
-                          return;
-                        }
-
-                        try {
-                          // Reauthenticate user
-                          final credential = EmailAuthProvider.credential(
-                            email: currentUser!.email!,
-                            password: currentPassword,
-                          );
-                          await currentUser!.reauthenticateWithCredential(credential);
-
-                          // Change password
-                          await currentUser!.updatePassword(newPassword);
-
-                          Navigator.of(context).pop();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("Password changed successfully")));
-                        } on FirebaseAuthException catch (e) {
-                          String errorMessage = "Password change failed";
-                          if (e.code == 'wrong-password') {
-                            errorMessage = "Current password is incorrect";
-                          } else if (e.code == 'requires-recent-login') {
-                            errorMessage = "This operation is sensitive and requires recent authentication. Log in again before retrying this request.";
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(errorMessage)));
-                        } catch (e) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("Error: ${e.toString()}")));
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.teal,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                        child: Text('CHANGE', style: TextStyle(fontSize: 16)),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              );
+            },
           ),
-        );
-      }),
     );
   }
 
-  Widget _buildInputField(TextEditingController controller, String label, IconData icon,
-      {TextInputType keyboardType = TextInputType.text}) {
+  Widget _buildInputField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
     return TextField(
       controller: controller,
       keyboardType: keyboardType,
@@ -322,7 +459,10 @@ class _ProfilePageState extends State<ProfilePage> {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 16,
+          horizontal: 16,
+        ),
       ),
     );
   }
@@ -362,8 +502,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               ),
-              title: const Text('Profile', 
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              title: const Text(
+                'Profile',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               centerTitle: true,
             ),
             actions: [
@@ -401,8 +546,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   return _buildEmptyProfileState(context);
                 }
 
-                final profileData = snapshot.data!.data() as Map<String, dynamic>;
-                return _buildProfileContent(context, snapshot.data!.id, profileData);
+                final profileData =
+                    snapshot.data!.data() as Map<String, dynamic>;
+                return _buildProfileContent(
+                  context,
+                  snapshot.data!.id,
+                  profileData,
+                );
               },
             ),
           ),
@@ -425,7 +575,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 color: Colors.teal.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.person_add_alt_1, size: 60, color: Colors.teal),
+              child: const Icon(
+                Icons.person_add_alt_1,
+                size: 60,
+                color: Colors.teal,
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
@@ -443,8 +597,12 @@ class _ProfilePageState extends State<ProfilePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.teal,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 12,
+                ),
               ),
               child: const Text(
                 'Create Profile',
@@ -457,7 +615,11 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildProfileContent(BuildContext context, String docId, Map<String, dynamic> profileData) {
+  Widget _buildProfileContent(
+    BuildContext context,
+    String docId,
+    Map<String, dynamic> profileData,
+  ) {
     final firstName = profileData['first_name'] ?? '';
     final lastName = profileData['last_name'] ?? '';
     final email = profileData['email'] ?? 'Not provided';
@@ -481,7 +643,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       color: Colors.teal.withOpacity(0.2),
                       blurRadius: 12,
                       spreadRadius: 6,
-                    )
+                    ),
                   ],
                 ),
                 child: CircleAvatar(
@@ -492,7 +654,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     style: TextStyle(
                       fontSize: 48,
                       color: Colors.teal.shade800,
-                      fontWeight: FontWeight.bold),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -500,14 +663,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 bottom: 0,
                 right: 0,
                 child: GestureDetector(
-                  onTap: () => _showEditProfileDialog(
-                    context,
-                    docId: docId,
-                    firstname: firstName,
-                    lastname: lastName,
-                    email: email,
-                    contactno: phone,
-                  ),
+                  onTap:
+                      () => _showEditProfileDialog(
+                        context,
+                        docId: docId,
+                        firstname: firstName,
+                        lastname: lastName,
+                        email: email,
+                        contactno: phone,
+                      ),
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -518,7 +682,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           color: Colors.grey.withOpacity(0.3),
                           blurRadius: 6,
                           spreadRadius: 2,
-                        )
+                        ),
                       ],
                     ),
                     child: const Icon(Icons.edit, color: Colors.teal, size: 24),
@@ -530,34 +694,41 @@ class _ProfilePageState extends State<ProfilePage> {
           const SizedBox(height: 24),
           Text(
             '$firstName $lastName',
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             email,
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 32),
           Card(
             elevation: 2,
             margin: const EdgeInsets.symmetric(horizontal: 16),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16)),
+              borderRadius: BorderRadius.circular(16),
+            ),
             child: Padding(
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  _buildProfileItem(Icons.person_outline, 'Full Name', '$firstName $lastName'),
+                  _buildProfileItem(
+                    Icons.person_outline,
+                    'Full Name',
+                    '$firstName $lastName',
+                  ),
                   const Divider(height: 30, thickness: 0.5),
-                  _buildProfileItem(Icons.email_outlined, 'Email Address', email),
+                  _buildProfileItem(
+                    Icons.email_outlined,
+                    'Email Address',
+                    email,
+                  ),
                   const Divider(height: 30, thickness: 0.5),
-                  _buildProfileItem(Icons.phone_outlined, 'Phone Number', phone),
+                  _buildProfileItem(
+                    Icons.phone_outlined,
+                    'Phone Number',
+                    phone,
+                  ),
                   const Divider(height: 30, thickness: 0.5),
                   GestureDetector(
                     onTap: () => _showChangePasswordDialog(context),
@@ -571,7 +742,11 @@ class _ProfilePageState extends State<ProfilePage> {
                             color: Colors.teal.withOpacity(0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.lock_outline, color: Colors.teal, size: 20),
+                          child: const Icon(
+                            Icons.lock_outline,
+                            color: Colors.teal,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 16),
                         const Expanded(
@@ -583,7 +758,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 style: TextStyle(
                                   color: Colors.grey,
                                   fontSize: 14,
-                                  fontWeight: FontWeight.w500
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                               SizedBox(height: 4),
@@ -591,7 +766,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 '••••••••',
                                 style: TextStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w600
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -609,14 +784,15 @@ class _ProfilePageState extends State<ProfilePage> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: ElevatedButton(
-              onPressed: () => _showEditProfileDialog(
-                context,
-                docId: docId,
-                firstname: firstName,
-                lastname: lastName,
-                email: email,
-                contactno: phone,
-              ),
+              onPressed:
+                  () => _showEditProfileDialog(
+                    context,
+                    docId: docId,
+                    firstname: firstName,
+                    lastname: lastName,
+                    email: email,
+                    contactno: phone,
+                  ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.teal,
@@ -665,7 +841,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 style: TextStyle(
                   color: Colors.grey.shade600,
                   fontSize: 14,
-                  fontWeight: FontWeight.w500
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 4),
@@ -673,7 +849,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 value,
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w600
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
