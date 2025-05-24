@@ -59,7 +59,7 @@ class HomePage extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Image.asset('assets/images/empty_fridge.png', height: 150),
+                    Icon(Icons.food_bank, size: 150, color: Colors.grey[400]),
                     const SizedBox(height: 20),
                     const Text(
                       'Your inventory is empty',
