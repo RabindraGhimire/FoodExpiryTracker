@@ -370,120 +370,139 @@ class _FoodsPageState extends State<FoodsPage> {
   }
 
  Future<void> _shareFoodItem(BuildContext context, String docId) async {
-    try {
-      Position? position;
-      String? manualAddress;
+  try {
+    Position? position;
+    String? manualAddress;
+    bool locationDenied = false;
 
-      LocationPermission permission = await Geolocator.checkPermission();
+    // Check location permissions
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
+        locationDenied = true;
       }
+    }
 
-      if (permission == LocationPermission.whileInUse || 
-          permission == LocationPermission.always) {
+    // Get location or fallback to manual address
+    if (!locationDenied && 
+        (permission == LocationPermission.whileInUse ||
+         permission == LocationPermission.always)) {
+      try {
         position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.medium,
         );
-      } else {
-        manualAddress = await showDialog<String>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Enter Location'),
-            content: TextField(
-              decoration: const InputDecoration(
-                labelText: 'Address',
-                hintText: 'e.g., 123 Main Street, City'
-              ),
-              onSubmitted: (value) => Navigator.pop(context, value),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, manualAddress),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-
-      final locationData = {
-        'sharedAt': firestore.Timestamp.now(),
-        if (position != null)
-          'location': firestore.GeoPoint(
-            position.latitude, 
-            position.longitude
-          ),
-        if (manualAddress != null) 'address': manualAddress,
-      };
-
-      await firestoreService.shareFoodItem(
-        docId: docId,
-        locationData: locationData,
-      );
-
-      await FirebaseFirestore.instance.collection('foods').doc(docId).update({
-        'isShared': true,
-        'sharedAt': FieldValue.serverTimestamp(),
-      });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Item shared to community!'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error sharing item: ${e.toString()}'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      } catch (e) {
+        debugPrint('Location error: $e');
+        locationDenied = true;
       }
     }
+
+    // Show manual address dialog if needed
+    if (locationDenied || position == null) {
+      final addressController = TextEditingController();
+      manualAddress = await showDialog<String>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Enter Location'),
+          content: TextField(
+            controller: addressController,
+            decoration: const InputDecoration(
+              labelText: 'Address',
+              hintText: 'e.g., 123 Main Street, City',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, addressController.text),
+              child: const Text('Share'),
+            ),
+          ],
+        ),
+      );
+
+      if (manualAddress == null || manualAddress!.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Sharing canceled - address required'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+    }
+
+    // Prepare location data
+    final locationData = {
+      'isShared': true,
+      'sharedAt': FieldValue.serverTimestamp(),
+      if (position != null)
+        'location': firestore.GeoPoint(position.latitude, position.longitude),
+      if (manualAddress != null) 'address': manualAddress,
+    };
+
+    // Update Firestore through service
+    await firestoreService.shareFoodItem(
+      docId: docId,
+      locationData: locationData,
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Item shared to community!'),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  } catch (e) {
+    debugPrint('Sharing error: $e');
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error sharing item: ${e.toString()}'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+    rethrow;
   }
+}
 
  void _handlePickup(BuildContext context, String docId) async {
   try {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) throw Exception('Not authenticated');
+    // 1. Create an instance of your FirestoreService.
+    //    If you use a State Management solution (like Provider, Riverpod, BLoC),
+    //    you would get the instance differently, e.g., Provider.of<FirestoreService>(context).
+    final firestoreService = FirestoreService();
 
-    final foodDoc = FirebaseFirestore.instance.collection('foods').doc(docId);
-    final foodData = (await foodDoc.get()).data();
+    // 2. Call the dedicated method in your service to handle the pickup logic.
+    //    This method already contains all the Firebase interactions,
+    //    authentication checks, ownership verification, and batch operations.
+    await firestoreService.confirmPickupByOwner(docId);
 
-    // Verify ownership
-    if (foodData?['userId'] != user.uid) {
-      throw Exception('Not authorized');
-    }
-
-    final batch = FirebaseFirestore.instance.batch();
-    
-    // Remove from community
-    batch.delete(FirebaseFirestore.instance.collection('community').doc(docId));
-    
-    // Update food item
-    batch.update(foodDoc, {
-      'isShared': false,
-      'claimedBy': FieldValue.delete(),
-      'sharedAt': FieldValue.delete(),
-    });
-
-    await batch.commit();
-
-    if (mounted) {
+    // 3. Display a success message to the user.
+    //    Use context.mounted to ensure the BuildContext is still valid.
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Successfully marked as picked up')),
       );
     }
   } catch (e) {
-    if (mounted) {
+    // 4. Handle any errors that occur during the pickup process
+    //    (e.g., not authenticated, not authorized, network issues).
+    //    Use context.mounted to ensure the BuildContext is still valid.
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );

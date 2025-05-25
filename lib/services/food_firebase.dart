@@ -6,44 +6,41 @@ class FirestoreService {
   final CollectionReference foods =
       FirebaseFirestore.instance.collection('foods');
 
-  // Get current user ID
   String? get currentUserId => FirebaseAuth.instance.currentUser?.uid;
 
   // Core Food Item Operations
   Future<void> addFullFoodItem({
-  required String name,
-  required DateTime purchaseDate,
-  required DateTime expiryDate,
-  required int quantity,
-  required String note,
-}) async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) throw Exception('User not logged in');
+    required String name,
+    required DateTime purchaseDate,
+    required DateTime expiryDate,
+    required int quantity,
+    required String note,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
 
-  await foods.add({
-    'userId': user.uid, // Essential for security rules
-    'name': name,
-    'purchaseDate': Timestamp.fromDate(purchaseDate),
-    'expiryDate': Timestamp.fromDate(expiryDate),
-    'quantity': quantity,
-    'note': note,
-    'timestamp': Timestamp.now(),
-    'isShared': false, // Matches security rule field name
-    'claimedBy': null, // Use null for unclaimed items
-    'ownerName': user.displayName ?? 'Anonymous', // Pre-fill owner info
-    'ownerEmail': user.email,
-    'sharedAt': null, // Will be set when sharing
-    'location': null, // For community items
-    'address': null   // For community items
-  });
-}
+    await foods.add({
+      'userId': user.uid,
+      'name': name,
+      'purchaseDate': Timestamp.fromDate(purchaseDate),
+      'expiryDate': Timestamp.fromDate(expiryDate),
+      'quantity': quantity,
+      'note': note,
+      'timestamp': Timestamp.now(),
+      'isShared': false,
+      'isClaimed': false,
+      'claimedBy': null,
+      'ownerName': user.displayName ?? 'Anonymous',
+      'ownerEmail': user.email,
+      'sharedAt': null,
+      'location': null,
+      'address': null
+    });
+  }
 
   Stream<QuerySnapshot> getFoods() {
     final userId = currentUserId;
-    if (userId == null) {
-      debugPrint('No user logged in');
-      return const Stream.empty();
-    }
+    if (userId == null) return const Stream.empty();
 
     return foods
         .where('userId', isEqualTo: userId)
@@ -58,8 +55,8 @@ class FirestoreService {
     required DateTime expiryDate,
     required int quantity,
     required String note,
-  }) {
-    return foods.doc(docId).update({
+  }) async {
+    await foods.doc(docId).update({
       'name': name,
       'purchaseDate': Timestamp.fromDate(purchaseDate),
       'expiryDate': Timestamp.fromDate(expiryDate),
@@ -69,8 +66,8 @@ class FirestoreService {
     });
   }
 
-  Future<void> deleteFoodItem(String docId) {
-    return foods.doc(docId).delete();
+  Future<void> deleteFoodItem(String docId) async {
+    await foods.doc(docId).delete();
   }
 
   // Community Features
@@ -81,98 +78,125 @@ class FirestoreService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) throw Exception('User not logged in');
 
-    await foods.doc(docId).update({
-      'shared': true,
-      'ownerName': user.displayName ?? user.email,
-      'ownerEmail': user.email,
+    final batch = FirebaseFirestore.instance.batch();
+    
+    // Update food document
+    final foodRef = foods.doc(docId);
+    batch.update(foodRef, {
+      'isShared': true,
       'isClaimed': false,
       'claimedBy': null,
+      'sharedAt': Timestamp.now(),
       ...locationData,
     });
+
+    // Create community listing
+    final communityRef = FirebaseFirestore.instance.collection('community').doc(docId);
+    batch.set(communityRef, {
+      'userId': user.uid,
+      'foodId': docId,
+      'sharedAt': Timestamp.now(),
+      ...locationData,
+    });
+
+    await batch.commit();
   }
 
   Future<void> unshareFoodItem(String docId) async {
-    final doc = await foods.doc(docId).get();
-    if (!doc.exists) throw Exception('Item not found');
-
-    final data = doc.data() as Map<String, dynamic>;
-    if (data['userId'] != currentUserId) throw Exception('Not item owner');
-
-    await foods.doc(docId).update({
-      'shared': false,
+    final batch = FirebaseFirestore.instance.batch();
+    
+    // Update food document
+    batch.update(foods.doc(docId), {
+      'isShared': false,
       'isClaimed': false,
       'claimedBy': null,
-      'ownerName': null,
-      'ownerEmail': null,
+      'sharedAt': null,
     });
+
+    // Remove from community
+    batch.delete(FirebaseFirestore.instance.collection('community').doc(docId));
+
+    await batch.commit();
   }
 
   Future<void> claimFoodItem(String docId) async {
     final userId = currentUserId;
     if (userId == null) throw Exception('User not logged in');
 
-    final doc = await foods.doc(docId).get();
-    if (!doc.exists) throw Exception('Item not found');
+    try {
+      final doc = await foods.doc(docId).get();
+      if (!doc.exists) throw Exception('Item not found');
 
-    final data = doc.data() as Map<String, dynamic>;
-    if (data['userId'] == userId) throw Exception('Cannot claim your own item');
-    if (data['isClaimed'] == true) throw Exception('Item already claimed');
-    if (data['shared'] != true) throw Exception('Item not shared');
+      final data = doc.data() as Map<String, dynamic>;
+      if (data['userId'] == userId) throw Exception('Cannot claim your own item');
+      if (data['isClaimed'] == true) throw Exception('Item already claimed');
+      if (data['isShared'] != true) throw Exception('Item not shared');
 
-    // Create copy in claimant's pantry
-    await foods.add({
-      'userId': userId,
-      'name': data['name'],
-      'purchaseDate': data['purchaseDate'],
-      'expiryDate': data['expiryDate'],
-      'quantity': data['quantity'],
-      'note': data['note'],
-      'timestamp': Timestamp.now(),
-      'shared': false,
-      'isClaimed': false,
-      'claimedBy': null,
-      'ownerName': null,
-      'ownerEmail': null,
-    });
+      // Create copy for claimant
+      // This creates a new document in the claimant's 'foods' collection
+      await foods.add({
+        'userId': userId,
+        // Remove 'userId' from the copied data to avoid conflicts, then spread the rest
+        ...data..removeWhere((key, _) => key == 'userId'), 
+        'timestamp': Timestamp.now(),
+        'isShared': false, // The claimant's copy is not shared
+        'isClaimed': false, // The claimant's copy is not claimed by anyone else
+        'claimedBy': null,
+        'sharedAt': null,
+      });
 
-    // Mark original as claimed
-    await foods.doc(docId).update({
-      'isClaimed': true,
-      'claimedBy': userId,
-    });
+      // Update original item to mark it as claimed
+      // This keeps the original item in the owner's 'foods' collection but marks it as claimed
+      await foods.doc(docId).update({
+        'isClaimed': true,
+        'claimedBy': userId,
+      });
+    } on FirebaseException catch (e) {
+      debugPrint('Claim failed: ${e.message}');
+      rethrow;
+    }
   }
-  
-Stream<QuerySnapshot> getCommunityFoods() {
-  try {
+
+  /// Confirms that a shared food item has been picked up by the claimant.
+  /// This method is called by the original owner of the food item.
+  /// It deletes the original food item from the owner's 'foods' collection
+  /// and removes its listing from the 'community' collection.
+  Future<void> confirmPickupByOwner(String docId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) throw Exception('User not logged in');
+
+    final foodDocRef = foods.doc(docId);
+    // Explicitly cast the data to Map<String, dynamic>?
+    final foodData = (await foodDocRef.get()).data() as Map<String, dynamic>?;
+
+    // Verify ownership: Only the owner can confirm pickup of their shared item
+    if (foodData?['userId'] != user.uid) {
+      throw Exception('Not authorized to confirm pickup for this item');
+    }
+
+    final batch = FirebaseFirestore.instance.batch();
+    
+    // 1. Delete the listing from the 'community' collection
+    batch.delete(FirebaseFirestore.instance.collection('community').doc(docId));
+    
+    // 2. Delete the original food item from the owner's 'foods' collection
+    // This effectively "transfers" it by removing the original and leaving the claimant's copy.
+    batch.delete(foodDocRef);
+
+    await batch.commit();
+  }
+
+  Stream<QuerySnapshot> getCommunityFoods() {
     return foods
-        .where('shared', isEqualTo: true)
+        .where('isShared', isEqualTo: true)
         .where('isClaimed', isEqualTo: false)
         .orderBy('expiryDate', descending: false)
         .snapshots();
-  } catch (e, stacktrace) {
-    debugPrint("Firestore Error: $e");
-    debugPrint("Stacktrace: $stacktrace");
-    rethrow;
   }
-}
 
   // Helper Methods
   Future<Map<String, dynamic>?> getFoodItem(String docId) async {
     final doc = await foods.doc(docId).get();
     return doc.exists ? doc.data() as Map<String, dynamic> : null;
-  }
-
-  Future<void> markAsPickedUp(String docId) async {
-    await FirebaseFirestore.instance.collection('community').doc(docId).delete();
-    await FirebaseFirestore.instance.collection('foods').doc(docId).update({
-      'isShared': false,
-      'claimedBy': FieldValue.delete(),
-    });
-  }
-
-  Future<void> updateSharedStatus(String docId, bool isShared) async {
-    await FirebaseFirestore.instance.collection('foods').doc(docId).update({
-      'isShared': isShared,
-    });
   }
 }
