@@ -51,7 +51,7 @@ dependencies:
   flutter_slidable: ^4.0.0
   firebase_database: ^11.3.5
   firebase_storage: 12.4.5
-  
+  geoflutterfire_plus: ^0.0.32 
   geocoding: ^3.0.0
 
 

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firstproject/services/food_firebase.dart';
+// No need for geocoding here, as the address is already stored
 
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key});
@@ -57,6 +58,8 @@ class _CommunityPageState extends State<CommunityPage> {
               final data = doc.data() as Map<String, dynamic>;
               return _buildCommunityItem(doc.id, data);
             } catch (e) {
+              // Catching and displaying error for individual item rendering
+              debugPrint('Error processing community item: $e');
               return ListTile(
                 title: const Text('Error loading item'),
                 subtitle: Text(e.toString()),
@@ -94,13 +97,16 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Widget _buildCommunityItem(String docId, Map<String, dynamic> data) {
-    final expiryDate = data['expiryDate'] is Timestamp 
+    final expiryDate = data['expiryDate'] is Timestamp
         ? (data['expiryDate'] as Timestamp).toDate()
-        : DateTime.now().add(const Duration(days: 1));
+        : DateTime.now().add(const Duration(days: 1)); // Fallback
     final daysRemaining = expiryDate.difference(DateTime.now()).inDays;
     final isClaimed = data['isClaimed'] ?? false;
-    final isMyItem = _currentUser?.uid != null && 
+    final isMyItem = _currentUser?.uid != null &&
         _currentUser!.uid == data['userId'];
+
+    // Retrieve the address
+    final String? address = data['address'] as String?;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -131,7 +137,7 @@ class _CommunityPageState extends State<CommunityPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Row(
+            Row( // This Row contains the owner, date, and quantity details
               children: [
                 _buildDetailItem(
                   icon: Icons.person_outline,
@@ -147,6 +153,19 @@ class _CommunityPageState extends State<CommunityPage> {
                 ),
               ],
             ),
+            // --- FIX 1: Display the address in its own Row to correctly constrain the Expanded _buildDetailItem ---
+            if (address != null && address.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Row( // Added this Row
+                children: [
+                  _buildDetailItem(
+                    icon: Icons.location_on_outlined,
+                    text: address,
+                  ),
+                ],
+              ),
+            ],
+            // --- End Fix 1 ---
             if (data['note']?.toString().isNotEmpty == true) ...[
               const SizedBox(height: 8),
               Text(
@@ -162,13 +181,14 @@ class _CommunityPageState extends State<CommunityPage> {
     );
   }
 
+  // Helper widget to display an icon and text, using Expanded
   Widget _buildDetailItem({required IconData icon, required String text}) {
     return Expanded(
       child: Row(
         children: [
           Icon(icon, size: 16, color: Colors.grey[600]),
           const SizedBox(width: 4),
-          Expanded(
+          Expanded( // Inner Expanded ensures text takes remaining space in its row
             child: Text(
               text,
               style: TextStyle(color: Colors.grey[600]),
@@ -240,14 +260,52 @@ class _CommunityPageState extends State<CommunityPage> {
       );
     }
 
-    return ElevatedButton.icon(
-      icon: const Icon(Icons.shopping_basket, size: 18),
-      label: const Text('Claim Item'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.teal,
-        foregroundColor: Colors.white,
-      ),
-      onPressed: () => _handleClaimItem(docId, data['name']?.toString() ?? 'Item'),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch, // To make buttons full width
+      children: [
+        ElevatedButton.icon(
+          icon: const Icon(Icons.shopping_basket, size: 18),
+          label: const Text('Claim Item'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.teal,
+            foregroundColor: Colors.white,
+          ),
+          onPressed: () => _handleClaimItem(docId, data['name']?.toString() ?? 'Item'),
+        ),
+        // --- FIX 2: Correctly group conditional SizedBox and OutlinedButton ---
+        if (data['address'] != null && (data['location'] is GeoPoint)) ...[
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            icon: const Icon(Icons.map_outlined, size: 18),
+            label: const Text('View on Map'),
+            onPressed: () {
+              // TODO: Implement navigation to a map screen
+              // You would pass the GeoPoint and address to your map viewing screen.
+              // Example:
+              // final GeoPoint geoPoint = data['location'] as GeoPoint;
+              // Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (context) => MapScreen(
+              //       latitude: geoPoint.latitude,
+              //       longitude: geoPoint.longitude,
+              //       address: data['address'] as String,
+              //     ),
+              //   ),
+              // );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Map viewing not yet implemented.'),
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+        // --- End Fix 2 ---
+      ],
     );
   }
 
@@ -262,6 +320,7 @@ class _CommunityPageState extends State<CommunityPage> {
         ),
       );
     } catch (e) {
+      debugPrint('Error claiming item: $e'); // Added debugPrint
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -307,6 +366,7 @@ class _CommunityPageState extends State<CommunityPage> {
         ),
       );
     } catch (e) {
+      debugPrint('Error unsharing item: $e'); // Added debugPrint
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

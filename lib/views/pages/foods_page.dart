@@ -7,6 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:geocoding/geocoding.dart';
 
 class FoodsPage extends StatefulWidget {
   const FoodsPage({super.key, required bool showAddForm});
@@ -372,7 +373,7 @@ class _FoodsPageState extends State<FoodsPage> {
  Future<void> _shareFoodItem(BuildContext context, String docId) async {
   try {
     Position? position;
-    String? manualAddress;
+    String? finalAddress; // This will hold the human-readable address
     bool locationDenied = false;
 
     // Check location permissions
@@ -385,23 +386,50 @@ class _FoodsPageState extends State<FoodsPage> {
     }
 
     // Get location or fallback to manual address
-    if (!locationDenied && 
+    if (!locationDenied &&
         (permission == LocationPermission.whileInUse ||
          permission == LocationPermission.always)) {
       try {
         position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.medium,
         );
+        // --- NEW: Reverse Geocode if position is obtained ---
+        if (position != null) {
+          try {
+            List<Placemark> placemarks = await placemarkFromCoordinates(
+              position.latitude,
+              position.longitude,
+            );
+            if (placemarks.isNotEmpty) {
+              Placemark place = placemarks[0];
+              // Construct a readable address from Placemark details
+              finalAddress =
+                  "${place.street}, ${place.subLocality}, ${place.locality}, ${place.administrativeArea}, ${place.postalCode}, ${place.country}";
+            } else {
+              debugPrint('No placemarks found for coordinates.');
+              finalAddress = "Address not found"; // Fallback
+            }
+          } catch (e) {
+            debugPrint('Reverse geocoding error: $e');
+            finalAddress = "Address not found (error)"; // Fallback on geocoding error
+          }
+        }
+        // ----------------------------------------------------
       } catch (e) {
         debugPrint('Location error: $e');
         locationDenied = true;
       }
     }
 
-    // Show manual address dialog if needed
-    if (locationDenied || position == null) {
+    // Show manual address dialog if needed (either location denied or position couldn't be obtained, or geocoding failed)
+    if (locationDenied || position == null || finalAddress == null || finalAddress!.isEmpty) {
       final addressController = TextEditingController();
-      manualAddress = await showDialog<String>(
+      // Pre-fill if we got a partial address from geocoding, but it wasn't good enough
+      if (finalAddress != null && finalAddress!.isNotEmpty && finalAddress != "Address not found" && finalAddress != "Address not found (error)") {
+        addressController.text = finalAddress!;
+      }
+
+      final String? manualInput = await showDialog<String>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Enter Location'),
@@ -427,7 +455,7 @@ class _FoodsPageState extends State<FoodsPage> {
         ),
       );
 
-      if (manualAddress == null || manualAddress!.isEmpty) {
+      if (manualInput == null || manualInput.isEmpty) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -437,16 +465,18 @@ class _FoodsPageState extends State<FoodsPage> {
           );
         }
         return;
+      } else {
+        finalAddress = manualInput; // Use the manually entered address
       }
     }
 
     // Prepare location data
-    final locationData = {
+    final Map<String, dynamic> locationData = {
       'isShared': true,
-      'sharedAt': FieldValue.serverTimestamp(),
+      'sharedAt': firestore.FieldValue.serverTimestamp(),
       if (position != null)
         'location': firestore.GeoPoint(position.latitude, position.longitude),
-      if (manualAddress != null) 'address': manualAddress,
+      'address': finalAddress, // Always store the human-readable address
     };
 
     // Update Firestore through service
