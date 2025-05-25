@@ -596,7 +596,7 @@ class _FoodsPageState extends State<FoodsPage> {
                 final quantity = data['quantity'] ?? 1;
                 final note = data['note'] ?? '';
                 final daysUntilExpiry = expiryDate.difference(DateTime.now()).inDays;
-                final isExpired = daysUntilExpiry < 0;
+                final isExpired = daysUntilExpiry <= 0;
                 final isExpiringSoon = daysUntilExpiry <= 3 && !isExpired;
                 final isShared = data['isShared'] ?? false;
                 final claimedBy = data['claimedBy']?.toString();
