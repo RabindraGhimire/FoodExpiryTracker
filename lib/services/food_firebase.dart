@@ -8,6 +8,8 @@ class FirestoreService {
 
   String? get currentUserId => FirebaseAuth.instance.currentUser?.uid;
 
+
+  
   // Core Food Item Operations
   Future<void> addFullFoodItem({
     required String name,
@@ -30,7 +32,7 @@ class FirestoreService {
       'isShared': false,
       'isClaimed': false,
       'claimedBy': null,
-      'ownerName': user.displayName ?? 'Anonymous',
+      'ownerName': user.email ?? 'Anonymous',
       'ownerEmail': user.email,
       'sharedAt': null,
       'location': null,
@@ -199,4 +201,6 @@ class FirestoreService {
     final doc = await foods.doc(docId).get();
     return doc.exists ? doc.data() as Map<String, dynamic> : null;
   }
+
+  
 }

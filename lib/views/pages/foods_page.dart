@@ -373,7 +373,7 @@ class _FoodsPageState extends State<FoodsPage> {
  Future<void> _shareFoodItem(BuildContext context, String docId) async {
   try {
     Position? position;
-    String? finalAddress; // This will hold the human-readable address
+    String? finalAddress;
     bool locationDenied = false;
 
     // Check location permissions
@@ -388,12 +388,11 @@ class _FoodsPageState extends State<FoodsPage> {
     // Get location or fallback to manual address
     if (!locationDenied &&
         (permission == LocationPermission.whileInUse ||
-         permission == LocationPermission.always)) {
+            permission == LocationPermission.always)) {
       try {
         position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.medium,
         );
-        // --- NEW: Reverse Geocode if position is obtained ---
         if (position != null) {
           try {
             List<Placemark> placemarks = await placemarkFromCoordinates(
@@ -402,58 +401,56 @@ class _FoodsPageState extends State<FoodsPage> {
             );
             if (placemarks.isNotEmpty) {
               Placemark place = placemarks[0];
-              // Construct a readable address from Placemark details
               finalAddress =
                   "${place.street}, ${place.subLocality}, ${place.locality}, ${place.administrativeArea}, ${place.postalCode}, ${place.country}";
             } else {
               debugPrint('No placemarks found for coordinates.');
-              finalAddress = "Address not found"; // Fallback
+              finalAddress = "Address not found";
             }
           } catch (e) {
             debugPrint('Reverse geocoding error: $e');
-            finalAddress = "Address not found (error)"; // Fallback on geocoding error
+            finalAddress = "Address not found (error)";
           }
         }
-        // ----------------------------------------------------
       } catch (e) {
         debugPrint('Location error: $e');
         locationDenied = true;
       }
     }
 
-    // Show manual address dialog if needed (either location denied or position couldn't be obtained, or geocoding failed)
+    // Show manual address dialog if needed
     if (locationDenied || position == null || finalAddress == null || finalAddress!.isEmpty) {
-      final addressController = TextEditingController();
-      // Pre-fill if we got a partial address from geocoding, but it wasn't good enough
-      if (finalAddress != null && finalAddress!.isNotEmpty && finalAddress != "Address not found" && finalAddress != "Address not found (error)") {
-        addressController.text = finalAddress!;
-      }
+  final addressController = TextEditingController();
+  // Add null check before accessing finalAddress properties
+  if (finalAddress != null && finalAddress!.isNotEmpty && finalAddress != "Address not found" && finalAddress != "Address not found (error)") {
+    addressController.text = finalAddress!;
+  }
 
       final String? manualInput = await showDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Enter Location'),
-          content: TextField(
-            controller: addressController,
-            decoration: const InputDecoration(
-              labelText: 'Address',
-              hintText: 'e.g., 123 Main Street, City',
-              border: OutlineInputBorder(),
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, addressController.text),
-              child: const Text('Share'),
-            ),
-          ],
-        ),
-      );
+  context: context,  // Add context parameter
+  builder: (context) => AlertDialog(  // Add builder parameter
+    title: const Text('Enter Location'),
+    content: TextField(
+      controller: addressController,
+      decoration: const InputDecoration(
+        labelText: 'Address',
+        hintText: 'e.g., 123 Main Street, City',
+        border: OutlineInputBorder(),
+      ),
+      autofocus: true,
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, addressController.text),
+        child: const Text('Share'),
+      ),
+    ],
+  ),
+);
 
       if (manualInput == null || manualInput.isEmpty) {
         if (mounted) {
@@ -466,8 +463,42 @@ class _FoodsPageState extends State<FoodsPage> {
         }
         return;
       } else {
-        finalAddress = manualInput; // Use the manually entered address
+        finalAddress = manualInput;
       }
+    }
+
+    // Prompt for optional contact details/note
+    final contactController = TextEditingController();
+    String? contactNote = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Contact Details (Optional)'),
+        content: TextField(
+          controller: contactController,
+          decoration: const InputDecoration(
+            hintText: 'Example: Contact me at 555-1234 or email@example.com',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, null),
+            child: const Text('Skip'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, contactController.text),
+            child: const Text('Add Note'),
+          ),
+        ],
+      ),
+    );
+
+    // Trim and validate contact note
+    contactNote = contactNote?.trim();
+    if (contactNote != null && contactNote.isEmpty) {
+      contactNote = null;
     }
 
     // Prepare location data
@@ -476,7 +507,8 @@ class _FoodsPageState extends State<FoodsPage> {
       'sharedAt': firestore.FieldValue.serverTimestamp(),
       if (position != null)
         'location': firestore.GeoPoint(position.latitude, position.longitude),
-      'address': finalAddress, // Always store the human-readable address
+      'address': finalAddress,
+      if (contactNote != null) 'contactNote': contactNote,
     };
 
     // Update Firestore through service

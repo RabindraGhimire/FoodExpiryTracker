@@ -1,8 +1,12 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firstproject/services/food_firebase.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 // No need for geocoding here, as the address is already stored
 
 class CommunityPage extends StatefulWidget {
@@ -173,6 +177,13 @@ class _CommunityPageState extends State<CommunityPage> {
                 style: TextStyle(color: Colors.grey[600]),
               ),
             ],
+            if (data['contactNote']?.toString().isNotEmpty == true) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Contact Note: ${data['contactNote']}',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
             const SizedBox(height: 12),
             _buildActionButton(docId, data, isClaimed, isMyItem),
           ],
@@ -261,7 +272,7 @@ class _CommunityPageState extends State<CommunityPage> {
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch, // To make buttons full width
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ElevatedButton.icon(
           icon: const Icon(Icons.shopping_basket, size: 18),
@@ -272,43 +283,50 @@ class _CommunityPageState extends State<CommunityPage> {
           ),
           onPressed: () => _handleClaimItem(docId, data['name']?.toString() ?? 'Item'),
         ),
-        // --- FIX 2: Correctly group conditional SizedBox and OutlinedButton ---
         if (data['address'] != null && (data['location'] is GeoPoint)) ...[
           const SizedBox(height: 8),
           OutlinedButton.icon(
             icon: const Icon(Icons.map_outlined, size: 18),
             label: const Text('View on Map'),
-            onPressed: () {
-              // TODO: Implement navigation to a map screen
-              // You would pass the GeoPoint and address to your map viewing screen.
-              // Example:
-              // final GeoPoint geoPoint = data['location'] as GeoPoint;
-              // Navigator.push(
-              //   context,
-              //   MaterialPageRoute(
-              //     builder: (context) => MapScreen(
-              //       latitude: geoPoint.latitude,
-              //       longitude: geoPoint.longitude,
-              //       address: data['address'] as String,
-              //     ),
-              //   ),
-              // );
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Map viewing not yet implemented.'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
+            onPressed: () => _openMaps(data),
           ),
         ],
-        // --- End Fix 2 ---
       ],
     );
   }
 
+  Future<void> _openMaps(Map<String, dynamic> data) async {
+    try {
+      final GeoPoint? geoPoint = data['location'] as GeoPoint?;
+      if (geoPoint == null) {
+        throw 'No location data available';
+      }
+
+      final String url = Platform.isIOS
+          ? 'http://maps.apple.com/?ll=${geoPoint.latitude},${geoPoint.longitude}'
+          : 'https://www.google.com/maps/search/?api=1&query=${geoPoint.latitude},${geoPoint.longitude}';
+
+      if (await canLaunchUrl(Uri.parse(url))) {
+        await launchUrl(
+          Uri.parse(url),
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        throw 'Could not launch maps app';
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Map Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  
   void _handleClaimItem(String docId, String itemName) async {
     try {
       await _firestoreService.claimFoodItem(docId);
@@ -405,3 +423,4 @@ class _CommunityPageState extends State<CommunityPage> {
     );
   }
 }
+
