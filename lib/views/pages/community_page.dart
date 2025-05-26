@@ -19,7 +19,7 @@ class CommunityPage extends StatefulWidget {
 class _CommunityPageState extends State<CommunityPage> {
   final FirestoreService _firestoreService = FirestoreService();
   final User? _currentUser = FirebaseAuth.instance.currentUser;
-
+  final Map<String, bool> _expandedItems = {};
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -160,13 +160,35 @@ class _CommunityPageState extends State<CommunityPage> {
             // --- FIX 1: Display the address in its own Row to correctly constrain the Expanded _buildDetailItem ---
             if (address != null && address.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Row( // Added this Row
-                children: [
-                  _buildDetailItem(
-                    icon: Icons.location_on_outlined,
-                    text: address,
-                  ),
-                ],
+              GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _expandedItems[docId] = !(_expandedItems[docId] ?? false);
+                  });
+                },
+                child: Row(
+                  children: [
+                    Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        address,
+                        style: TextStyle(color: Colors.grey[600]),
+                        overflow: (_expandedItems[docId] ?? false) 
+                            ? TextOverflow.visible 
+                            : TextOverflow.ellipsis,
+                        maxLines: (_expandedItems[docId] ?? false) ? null : 1,
+                      ),
+                    ),
+                    Icon(
+                      (_expandedItems[docId] ?? false)
+                          ? Icons.expand_less
+                          : Icons.expand_more,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                  ],
+                ),
               ),
             ],
             // --- End Fix 1 ---
@@ -296,35 +318,35 @@ class _CommunityPageState extends State<CommunityPage> {
   }
 
   Future<void> _openMaps(Map<String, dynamic> data) async {
-    try {
-      final GeoPoint? geoPoint = data['location'] as GeoPoint?;
-      if (geoPoint == null) {
-        throw 'No location data available';
-      }
+  try {
+    final GeoPoint? geoPoint = data['location'] as GeoPoint?;
+    if (geoPoint == null) {
+      throw 'No location data available';
+    }
 
-      final String url = Platform.isIOS
-          ? 'http://maps.apple.com/?ll=${geoPoint.latitude},${geoPoint.longitude}'
-          : 'https://www.google.com/maps/search/?api=1&query=${geoPoint.latitude},${geoPoint.longitude}';
+    final String url = Platform.isIOS
+        ? 'http://maps.apple.com/?daddr=${geoPoint.latitude},${geoPoint.longitude}&dirflg=d'  // Directions in Apple Maps
+        : 'https://www.google.com/maps/dir/?api=1&destination=${geoPoint.latitude},${geoPoint.longitude}&travelmode=driving';  // Directions in Google Maps
 
-      if (await canLaunchUrl(Uri.parse(url))) {
-        await launchUrl(
-          Uri.parse(url),
-          mode: LaunchMode.externalApplication,
-        );
-      } else {
-        throw 'Could not launch maps app';
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Map Error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    if (await canLaunchUrl(Uri.parse(url))) {
+      await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } else {
+      throw 'Could not launch maps app';
+    }
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Map Error: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
+}
 
   
   void _handleClaimItem(String docId, String itemName) async {
