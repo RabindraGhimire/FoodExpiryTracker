@@ -189,11 +189,17 @@ class FirestoreService {
   }
 
   Stream<QuerySnapshot> getCommunityFoods() {
+    try {
     return foods
         .where('isShared', isEqualTo: true)
         .where('isClaimed', isEqualTo: false)
+        .where('location', isNull: false)
         .orderBy('expiryDate', descending: false)
         .snapshots();
+  } catch (e) {
+    print('Firestore query error: $e');
+    rethrow;
+  }
   }
 
   // Helper Methods

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:firstproject/services/food_firebase.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,6 +21,88 @@ class _CommunityPageState extends State<CommunityPage> {
   final FirestoreService _firestoreService = FirestoreService();
   final User? _currentUser = FirebaseAuth.instance.currentUser;
   final Map<String, bool> _expandedItems = {};
+  Position? _currentPosition;
+  bool _locationEnabled = false;
+  bool _locationLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserLocation();
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      setState(() => _locationLoading = true);
+      
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _locationEnabled = false;
+          _locationLoading = false;
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission != LocationPermission.whileInUse && 
+            permission != LocationPermission.always) {
+          setState(() {
+            _locationEnabled = false;
+            _locationLoading = false;
+          });
+          return;
+        }
+      }
+
+      final position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _currentPosition = position;
+        _locationEnabled = true;
+        _locationLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _locationEnabled = false;
+        _locationLoading = false;
+      });
+      debugPrint('Location error: $e');
+    }
+  }
+
+  List<QueryDocumentSnapshot> _sortByDistance(List<QueryDocumentSnapshot> docs) {
+  if (_currentPosition == null) return List.from(docs);
+
+  final sortedList = List<QueryDocumentSnapshot>.from(docs);
+  try {
+    sortedList.sort((a, b) {
+      final geoA = a['location'] as GeoPoint?;
+      final geoB = b['location'] as GeoPoint?;
+
+      final distA = _calculateDistance(geoA);
+      final distB = _calculateDistance(geoB);
+
+      return distA.compareTo(distB);
+    });
+  } catch (e) {
+    debugPrint('Error sorting by distance: $e');
+  }
+  return sortedList;
+}
+
+  double _calculateDistance(GeoPoint? geoPoint) {
+    if (_currentPosition == null || geoPoint == null) return double.infinity;
+    
+    return Geolocator.distanceBetween(
+      _currentPosition!.latitude,
+      _currentPosition!.longitude,
+      geoPoint.latitude,
+      geoPoint.longitude,
+    ) / 1000; // Convert to kilometers
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,6 +114,17 @@ class _CommunityPageState extends State<CommunityPage> {
             onPressed: _showCommunityGuidelines,
             tooltip: 'Community Guidelines',
           ),
+          if (_locationLoading)
+            const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(),
+            )
+          else if (!_locationEnabled)
+            IconButton(
+              icon: const Icon(Icons.location_off),
+              onPressed: _getUserLocation,
+              tooltip: 'Enable Location',
+            ),
         ],
       ),
       body: _buildCommunityList(),
@@ -53,23 +147,26 @@ class _CommunityPageState extends State<CommunityPage> {
           return _buildEmptyState();
         }
 
+        final sortedDocs = _sortByDistance(snapshot.data!.docs);
+
         return ListView.builder(
           padding: const EdgeInsets.all(16),
-          itemCount: snapshot.data!.docs.length,
+          itemCount: sortedDocs.length,
           itemBuilder: (context, index) {
-            try {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              return _buildCommunityItem(doc.id, data);
-            } catch (e) {
-              // Catching and displaying error for individual item rendering
-              debugPrint('Error processing community item: $e');
-              return ListTile(
-                title: const Text('Error loading item'),
-                subtitle: Text(e.toString()),
-              );
-            }
-          },
+  try {
+    final doc = sortedDocs[index];
+    final data = doc.data() as Map<String, dynamic>;
+    final geoPoint = data['location'] as GeoPoint?;
+    final distance = _calculateDistance(geoPoint);
+    return _buildCommunityItem(doc.id, data, distance);
+  } catch (e) {
+    debugPrint('Error processing community item: $e');
+    return ListTile(
+      title: const Text('Error loading item'),
+      subtitle: Text(e.toString()),
+    );
+  }
+},
         );
       },
     );
@@ -80,37 +177,54 @@ class _CommunityPageState extends State<CommunityPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.people_alt_outlined, size: 80, color: Colors.grey[400]),
-          const SizedBox(height: 20),
-          Text(
-            'No Shared Items Available',
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.w500,
+          if (!_locationEnabled && !_locationLoading)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Column(
+                children: [
+                  const Icon(Icons.location_off, size: 40, color: Colors.orange),
+                  const SizedBox(height: 8),
+                  const Text('Location Services Disabled'),
+                  TextButton(
+                    onPressed: _getUserLocation,
+                    child: const Text('Enable Location for Sorting'),
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              children: [
+                Icon(Icons.people_alt_outlined, size: 80, color: Colors.grey[400]),
+                const SizedBox(height: 20),
+                Text(
+                  'No Shared Items Available',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.grey[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Share items from your pantry to help the community',
+                  style: TextStyle(color: Colors.grey[500]),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Share items from your pantry to help the community',
-            style: TextStyle(color: Colors.grey[500]),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildCommunityItem(String docId, Map<String, dynamic> data) {
+  Widget _buildCommunityItem(String docId, Map<String, dynamic> data, double distance) {
     final expiryDate = data['expiryDate'] is Timestamp
         ? (data['expiryDate'] as Timestamp).toDate()
-        : DateTime.now().add(const Duration(days: 1)); // Fallback
+        : DateTime.now().add(const Duration(days: 1));
     final daysRemaining = expiryDate.difference(DateTime.now()).inDays;
     final isClaimed = data['isClaimed'] ?? false;
     final isMyItem = _currentUser?.uid != null &&
         _currentUser!.uid == data['userId'];
-
-    // Retrieve the address
-    final String? address = data['address'] as String?;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -141,7 +255,7 @@ class _CommunityPageState extends State<CommunityPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Row( // This Row contains the owner, date, and quantity details
+            Row(
               children: [
                 _buildDetailItem(
                   icon: Icons.person_outline,
@@ -157,41 +271,61 @@ class _CommunityPageState extends State<CommunityPage> {
                 ),
               ],
             ),
-            // --- FIX 1: Display the address in its own Row to correctly constrain the Expanded _buildDetailItem ---
-            if (address != null && address.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              GestureDetector(
-                onTap: () {
-                  setState(() {
-                    _expandedItems[docId] = !(_expandedItems[docId] ?? false);
-                  });
-                },
-                child: Row(
-                  children: [
-                    Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        address,
-                        style: TextStyle(color: Colors.grey[600]),
-                        overflow: (_expandedItems[docId] ?? false) 
-                            ? TextOverflow.visible 
-                            : TextOverflow.ellipsis,
-                        maxLines: (_expandedItems[docId] ?? false) ? null : 1,
-                      ),
-                    ),
-                    Icon(
-                      (_expandedItems[docId] ?? false)
-                          ? Icons.expand_less
-                          : Icons.expand_more,
-                      size: 16,
-                      color: Colors.grey[600],
-                    ),
-                  ],
-                ),
+            if (data['address'] != null && data['address'].toString().isNotEmpty) ...[
+  const SizedBox(height: 8),
+  GestureDetector(
+    onTap: () {
+      setState(() {
+        _expandedItems[docId] = !(_expandedItems[docId] ?? false);
+      });
+    },
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                data['address'],
+                style: TextStyle(color: Colors.grey[600]),
+                overflow: (_expandedItems[docId] ?? false) 
+                    ? TextOverflow.visible 
+                    : TextOverflow.ellipsis,
+                maxLines: (_expandedItems[docId] ?? false) ? null : 1,
               ),
-            ],
-            // --- End Fix 1 ---
+            ),
+            Icon(
+              (_expandedItems[docId] ?? false)
+                  ? Icons.expand_less
+                  : Icons.expand_more,
+              size: 16,
+              color: Colors.grey[600],
+            ),
+          ],
+        ),
+        if (distance != double.infinity)
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Row(
+              children: [
+                Icon(Icons.near_me, size: 16, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  '${distance.toStringAsFixed(1)} km away',
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    ),
+  ),
+],
             if (data['note']?.toString().isNotEmpty == true) ...[
               const SizedBox(height: 8),
               Text(
