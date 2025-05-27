@@ -10,15 +10,120 @@ class LoginPage extends StatefulWidget {
   State<LoginPage> createState() => _LoginPageState();
 }
 
-class _LoginPageState extends State<LoginPage>
-    with SingleTickerProviderStateMixin {
+class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   String? _errorMessage;
   bool _isLoading = false;
 
-  // Login function
+  Future<void> _forgotPassword() async {
+    final emailResetController = TextEditingController();
+    final _resetFormKey = GlobalKey<FormState>();
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Reset Password'),
+          content: Form(
+            key: _resetFormKey,
+            child: TextFormField(
+              controller: emailResetController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Enter your email',
+                prefixIcon: Icon(Icons.email),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter your email';
+                }
+                if (!RegExp(
+                  r"^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$",
+                ).hasMatch(value.trim())) {
+                  return 'Enter a valid email';
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (_resetFormKey.currentState!.validate()) {
+                  final email = emailResetController.text.trim().toLowerCase();
+
+                  try {
+                    final signInMethods = await FirebaseAuth.instance
+                        .fetchSignInMethodsForEmail(email);
+
+                    debugPrint('Sign-in methods for $email: $signInMethods');
+
+                    if (signInMethods.isNotEmpty &&
+                        !signInMethods.contains('password')) {
+                      String provider = getProviderName(signInMethods.first);
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Password reset not possible. This email is registered using $provider sign-in.',
+                          ),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
+
+                    await FirebaseAuth.instance.sendPasswordResetEmail(
+                      email: email,
+                    );
+
+                    if (!mounted) return;
+                    Navigator.pop(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Password reset email sent! Check your inbox.',
+                        ),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  } on FirebaseAuthException catch (e) {
+                    debugPrint('Firebase Error [${e.code}]: ${e.message}');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Error [${e.code}]: ${e.message ?? 'Failed to send reset email'}',
+                        ),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  } catch (e) {
+                    debugPrint('Unexpected error: $e');
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to send reset email'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text('Send'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _login() async {
     if (_formKey.currentState != null && _formKey.currentState!.validate()) {
       setState(() {
@@ -29,7 +134,7 @@ class _LoginPageState extends State<LoginPage>
       try {
         UserCredential userCredential = await FirebaseAuth.instance
             .signInWithEmailAndPassword(
-              email: _emailController.text.trim(),
+              email: _emailController.text.trim().toLowerCase(),
               password: _passwordController.text.trim(),
             );
 
@@ -90,7 +195,6 @@ class _LoginPageState extends State<LoginPage>
                   'https://media.giphy.com/media/bGQup3qs5lIaS8pmku/giphy.gif',
                   height: 120,
                 ),
-
                 const SizedBox(height: 20),
                 Text(
                   "Food Expiry Tracker",
@@ -105,7 +209,7 @@ class _LoginPageState extends State<LoginPage>
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.95),
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black26,
                         blurRadius: 10,
@@ -117,23 +221,17 @@ class _LoginPageState extends State<LoginPage>
                     key: _formKey,
                     child: Column(
                       children: [
-                        // Email Field
-                        // Email Field
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          style: const TextStyle(
-                            color: Colors.black,
-                          ), // Text color
+                          style: const TextStyle(color: Colors.black),
                           decoration: InputDecoration(
                             prefixIcon: const Icon(
                               Icons.email,
                               color: Colors.teal,
                             ),
                             labelText: 'Email',
-                            labelStyle: const TextStyle(
-                              color: Colors.black,
-                            ), // Label color
+                            labelStyle: const TextStyle(color: Colors.black),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -145,23 +243,17 @@ class _LoginPageState extends State<LoginPage>
                                       : null,
                         ),
                         const SizedBox(height: 20),
-
-                        // Password Field
                         TextFormField(
                           controller: _passwordController,
                           obscureText: true,
-                          style: const TextStyle(
-                            color: Colors.black,
-                          ), // Text color
+                          style: const TextStyle(color: Colors.black),
                           decoration: InputDecoration(
                             prefixIcon: const Icon(
                               Icons.lock,
                               color: Colors.teal,
                             ),
                             labelText: 'Password',
-                            labelStyle: const TextStyle(
-                              color: Colors.black,
-                            ), // Label color
+                            labelStyle: const TextStyle(color: Colors.black),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -172,18 +264,23 @@ class _LoginPageState extends State<LoginPage>
                                       ? 'Please enter your password'
                                       : null,
                         ),
-                        const SizedBox(height: 20),
-
-                        // Error Message
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: _forgotPassword,
+                            child: const Text(
+                              'Forgot Password?',
+                              style: TextStyle(color: Colors.teal),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
                         if (_errorMessage != null)
                           Text(
                             _errorMessage!,
                             style: const TextStyle(color: Colors.red),
                           ),
-
-                        const SizedBox(height: 20),
-
-                        // Login Button
+                        const SizedBox(height: 10),
                         SizedBox(
                           width: double.infinity,
                           child:
@@ -208,17 +305,13 @@ class _LoginPageState extends State<LoginPage>
                                     ),
                                   ),
                         ),
-                        const SizedBox(height: 20),
-
-                        // Sign Up Prompt
+                        const SizedBox(height: 24),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Text(
                               "Don't have an account?",
-                              style: TextStyle(
-                                color: Colors.black87,
-                              ), // Dark color text
+                              style: TextStyle(color: Colors.black87),
                             ),
                             TextButton(
                               onPressed: () {
@@ -231,7 +324,10 @@ class _LoginPageState extends State<LoginPage>
                               },
                               child: const Text(
                                 'Sign Up',
-                                style: TextStyle(color: Colors.teal),
+                                style: TextStyle(
+                                  color: Colors.teal,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
@@ -246,5 +342,21 @@ class _LoginPageState extends State<LoginPage>
         ),
       ),
     );
+  }
+}
+
+// ✅ Helper function
+String getProviderName(String providerId) {
+  switch (providerId) {
+    case 'google.com':
+      return 'Google';
+    case 'facebook.com':
+      return 'Facebook';
+    case 'apple.com':
+      return 'Apple';
+    case 'password':
+      return 'Email & Password';
+    default:
+      return providerId;
   }
 }
