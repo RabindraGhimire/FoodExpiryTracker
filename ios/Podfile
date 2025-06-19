@@ -31,6 +31,8 @@ target 'Runner' do
   use_frameworks!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  # Add this line to include PhoneNumberKit
+  pod 'PhoneNumberKit', '~> 3.3'
   target 'RunnerTests' do
     inherit! :search_paths
   end

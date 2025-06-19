@@ -372,6 +372,7 @@ class _FoodsPageState extends State<FoodsPage> {
 
  Future<void> _shareFoodItem(BuildContext context, String docId) async {
   try {
+    
     Position? position;
     String? finalAddress;
     bool locationDenied = false;

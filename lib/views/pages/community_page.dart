@@ -8,8 +8,6 @@ import 'package:intl/intl.dart';
 import 'package:firstproject/services/food_firebase.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-// No need for geocoding here, as the address is already stored
-
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key});
 
