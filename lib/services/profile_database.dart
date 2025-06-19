@@ -29,8 +29,8 @@ class FirestoreService {
     required String contactno,
   }) async {
     await _db.collection('profiles').doc(docId).update({
-      'firstname': firstname,  // Added firstname
-      'lastname': lastname,    // Added lastname
+      'first_name': firstname,  // Added firstname
+      'last_name': lastname,    // Added lastname
       'email': email,
       'contactno': contactno,  // Added contactno
       'updatedAt': FieldValue.serverTimestamp(),
